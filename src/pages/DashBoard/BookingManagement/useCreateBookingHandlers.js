@@ -97,6 +97,7 @@ export function useCreateBookingHandlers({
 	slotsLoading,
 	slotsError,
 	createdBookingForCheckIn,
+	preAssign,
 	sourceReminderId,
 	hasActiveEstimateDraft,
 	cancellingEstimate,
@@ -304,6 +305,10 @@ export function useCreateBookingHandlers({
 				fullName: String(info?.name ?? '').trim(),
 				phone: String(info?.phone ?? '').trim(),
 				referrerPhone: String(info?.referrerPhone ?? '').trim(),
+				// Phân công trước (tuỳ chọn) — check-in dùng làm giá trị mặc định
+				vehicleId: Number(preAssign?.vehicleId) || null,
+				advisorId: Number(preAssign?.advisorId) || null,
+				technicianId: Number(preAssign?.technicianId) || null,
 			};
 			if (Number.isFinite(estimateIdNum) && estimateIdNum > 0) {
 				payload.estimateId = estimateIdNum;
@@ -389,6 +394,7 @@ export function useCreateBookingHandlers({
 		schedule?.time,
 		selectedIds,
 		selectedItems,
+		preAssign,
 		sourceReminderId,
 		submitLocked,
 		setCreatedBookingForCheckIn,

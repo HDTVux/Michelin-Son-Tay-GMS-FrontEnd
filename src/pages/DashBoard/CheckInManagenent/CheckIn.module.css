@@ -1036,3 +1036,70 @@
   background: rgba(239, 68, 68, 0.9);
 }
 
+
+/* ─── Khối ảnh biển số đặt trên cùng ──────────────────────────────────────── */
+
+.plateCard {
+  border-color: var(--ui-primary, #3b82f6);
+  background: linear-gradient(180deg, #f0f7ff 0%, #ffffff 60%);
+}
+
+.stepBadgeIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--ui-surface-2, #e0edff);
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.plateRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.platePreviewWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.platePreview {
+  width: 220px;
+  height: 110px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--ui-border, #cbd5e1);
+  background: #ffffff;
+}
+
+.platePreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.platePlaceholder {
+  width: 220px;
+  height: 110px;
+  border-radius: 10px;
+  border: 1px dashed var(--ui-border, #cbd5e1);
+  background: var(--ui-surface-2, #f8fafc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-muted, #94a3b8);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .platePreview,
+  .platePlaceholder {
+    width: 100%;
+  }
+}

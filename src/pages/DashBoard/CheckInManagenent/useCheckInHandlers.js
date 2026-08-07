@@ -22,7 +22,7 @@ const readStaffRolesFromStorage = () => {
         if (!Array.isArray(parsed)) return [];
         return parsed
             .filter((r) => typeof r === 'string')
-            .map((r) => r.trim().toUpperCase())
+            .map((r) => r.trim().toUpperCase().replace(/^ROLE_/, ''))
             .filter(Boolean);
     } catch {
         return [];
@@ -129,6 +129,10 @@ export const mapLookupPayload = (payload) => {
         customerPhone: payload.customerPhone ?? customer?.phone ?? payload.phone ?? '',
         customerEmail: payload.customerEmail ?? customer?.email ?? payload.email ?? null,
         serviceCategory: payload.serviceCategory ?? payload.category ?? '',
+        // Phân công sẵn từ lúc tạo lịch — check-in dùng làm giá trị mặc định
+        vehicleId: payload.vehicleId ?? payload.booking?.vehicleId ?? null,
+        advisorId: payload.advisorId ?? payload.booking?.advisorId ?? null,
+        technicianId: payload.technicianId ?? payload.booking?.technicianId ?? null,
         items: Array.isArray(payload.items) ? payload.items : [],
         parts: Array.isArray(payload.parts) ? payload.parts : [],
         partItems: Array.isArray(payload.partItems) ? payload.partItems : [],
@@ -163,6 +167,7 @@ export function useCheckInHandlers({
     vehicleYear,
     safetyInspection,
     selectedAdvisorId,
+    selectedTechnicianId,
     photos,
     photoDescriptions,
     odometerNumber,
@@ -462,6 +467,28 @@ export function useCheckInHandlers({
             staffId = 0;
         }
 
+        // Tự phân công bản thân ngay lúc xác nhận nếu ô còn trống và nhân viên
+        // đang giữ vai trò tương ứng. Không làm việc này lúc mở trang để lễ tân
+        // luôn thấy đúng những gì đã phân công sẵn.
+        const currentRoles = readStaffRolesFromStorage();
+
+        let advisorId = Number(selectedAdvisorId) || 0;
+        if (!advisorId && staffId && currentRoles.includes('ADVISOR')) {
+            advisorId = staffId;
+            notify('Chưa chọn tư vấn viên — tự phân công bạn phụ trách phiếu này.');
+        }
+        // Tư vấn viên bắt buộc: backend từ chối phiếu không có advisor.
+        if (!advisorId) {
+            notify('Vui lòng chọn tư vấn viên phụ trách trước khi tạo phiếu.');
+            return;
+        }
+
+        let technicianId = Number(selectedTechnicianId) || 0;
+        if (!technicianId && staffId && currentRoles.includes('TECHNICIAN')) {
+            technicianId = staffId;
+            notify('Chưa chọn kỹ thuật viên — tự phân công bạn thực hiện phiếu này.');
+        }
+
 
         const payload = {
             bookingId,
@@ -473,7 +500,8 @@ export function useCheckInHandlers({
             year: Number(selectedVehicle?.year) || 0,
            
             safetyInspection: safetyInspection ? 'true' : 'false',
-            advisorId: Number(selectedAdvisorId) || null,
+            advisorId,
+            technicianId: technicianId || null,
             licensePlatePhoto: photos?.licensePlatePhoto?.dataUrl || '',
             photoFront: photos?.photoFront?.dataUrl || '',
             photoFrontDescription: validated.descriptions.photoFrontDescription,
@@ -535,6 +563,7 @@ export function useCheckInHandlers({
         photos,
         safetyInspection,
         selectedAdvisorId,
+        selectedTechnicianId,
         selectedVehicle,
         setIsSubmitting,
     ]);

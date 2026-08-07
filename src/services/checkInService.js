@@ -83,6 +83,15 @@ export const fetchCheckInAdvisors = (token) => {
   });
 };
 
+// Get technicians list for receptionist check-in (phân công sớm KTV)
+// Backend: GET /api/receptionist/check-in/technicians
+export const fetchCheckInTechnicians = (token) => {
+  return request('/api/receptionist/check-in/technicians', {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
 // Create a new vehicle for a customer during receptionist check-in
 // Backend: POST /api/receptionist/check-in/vehicles/create
 export const createCheckInVehicle = (payload, token) => {

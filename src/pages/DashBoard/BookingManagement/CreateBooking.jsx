@@ -13,6 +13,7 @@ import { getDefaultSafetyInspectionCategories } from '../../../services/safetyIn
 import { fetchAllCustomers } from '../../../services/adminService.js';
 import { fetchFallbackPricingConfigs } from '../../../services/warehouseService.js';
 import { fetchServiceTicketUsedItemsHistoryByCustomerId } from '../../../services/serviceTicketService.js';
+import PreAssignPicker from '../../../components/PreAssignPicker/PreAssignPicker.jsx';
 import { Contact, ExternalLink, Search, X } from 'lucide-react';
 import RankBadge from '../../../components/RankBadge/RankBadge.jsx';
 
@@ -211,6 +212,8 @@ export default function CreateBooking() {
 	const [submitError, setSubmitError] = useState('');
 	const [submitSuccess, setSubmitSuccess] = useState('');
 	const [createdBookingForCheckIn, setCreatedBookingForCheckIn] = useState(null);
+	// Phân công trước (tuỳ chọn) — check-in sẽ dùng làm giá trị mặc định
+	const [preAssign, setPreAssign] = useState({ vehicleId: '', advisorId: '', technicianId: '' });
 	const [submitLocked, setSubmitLocked] = useState(false);
 	const [cancellingEstimate, setCancellingEstimate] = useState(false);
 	const [estimateTableKey, setEstimateTableKey] = useState(0);
@@ -384,6 +387,7 @@ export default function CreateBooking() {
 			slotsLoading,
 			slotsError,
 			createdBookingForCheckIn,
+			preAssign,
 			sourceReminderId,
 			hasActiveEstimateDraft,
 			cancellingEstimate,
@@ -679,6 +683,13 @@ export default function CreateBooking() {
 								disabled={submitLocked}
 							/>
 						</div>
+
+						<PreAssignPicker
+							customerId={customerChecked?.customerId}
+							value={preAssign}
+							onChange={setPreAssign}
+							title="Chọn trước xe & nhân sự"
+						/>
 					</section>
 
 					<section className={`ui-card ${psStyles.customerInfoCard}`}>

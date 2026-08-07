@@ -74,6 +74,8 @@ export function usePartsSalesHandlers({ navigate }) {
 	const [customerCheckError, setCustomerCheckError] = useState('');
 	const [customerNotFound, setCustomerNotFound] = useState(false);
 	const [note, setNote] = useState('');
+	// Phân công trước (tuỳ chọn) — check-in sẽ dùng làm giá trị mặc định
+	const [preAssign, setPreAssign] = useState({ vehicleId: '', advisorId: '', technicianId: '' });
 
 	// Modal danh bạ
 	const [showDirectoryModal, setShowDirectoryModal] = useState(false);
@@ -631,6 +633,10 @@ export function usePartsSalesHandlers({ navigate }) {
 				phone: customer.phone || phone,
 				estimateId,
 				isPartsSale: true,
+				// Phân công trước (tuỳ chọn) — check-in dùng làm giá trị mặc định
+				vehicleId: Number(preAssign?.vehicleId) || null,
+				advisorId: Number(preAssign?.advisorId) || null,
+				technicianId: Number(preAssign?.technicianId) || null,
 			};
 
 			const res = await staffCreateBooking(payload);
@@ -685,7 +691,7 @@ export function usePartsSalesHandlers({ navigate }) {
 			payInFlightRef.current = false;
 			setPaying(false);
 		}
-	}, [customer, estimateId, scheduleDate, scheduleTime, note, phone, selectedEstimate, navigate]);
+	}, [customer, estimateId, scheduleDate, scheduleTime, note, phone, selectedEstimate, navigate, preAssign]);
 
 	return {
 		// customer
@@ -756,5 +762,8 @@ export function usePartsSalesHandlers({ navigate }) {
 		normalizePeriodLabel,
 		dateOptions,
 		handleCreateBooking,
+		// pre-assign
+		preAssign,
+		setPreAssign,
 	};
 }

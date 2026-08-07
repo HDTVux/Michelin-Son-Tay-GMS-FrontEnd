@@ -10,6 +10,7 @@ import AdvisorItemsTable from '../ServiceTicketManagement/AdvisorItemsTable.jsx'
 import Receipt from '../Receipt/Receipt.jsx';
 import CreateCustomerModal from '../CustomerManager/CreateCustomerModal.jsx';
 import RankBadge from '../../../components/RankBadge/RankBadge.jsx';
+import PreAssignPicker from '../../../components/PreAssignPicker/PreAssignPicker.jsx';
 import { usePartsSalesHandlers, PARTS_SALES_ESTIMATE_STORAGE_KEY } from './usePartsSalesHandlers.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 
@@ -338,6 +339,13 @@ export default function PartsSales() {
 								})}
 							</div>
 						</div>
+
+						<PreAssignPicker
+							customerId={h.customer?.customerId}
+							value={h.preAssign}
+							onChange={h.setPreAssign}
+							title="Chọn trước xe & nhân sự"
+						/>
 					</section>
 				)}
 

@@ -3,7 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import styles from './CheckIn.module.css';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
-import { fetchCheckInAdvisors, fetchCheckInCustomerVehicles } from '../../../services/checkInService.js';
+import {
+    fetchCheckInAdvisors,
+    fetchCheckInCustomerVehicles,
+    fetchCheckInTechnicians,
+} from '../../../services/checkInService.js';
 import { toast } from 'react-toastify';
 import { normalizeVehiclesPayload, useCheckInHandlers } from './useCheckInHandlers.js';
 import { validateLicensePlateStrict } from '../../../components/inputValidation.js';
@@ -201,6 +205,39 @@ const mergeBookingSnapshotForDisplay = (booking, snapshot) => {
 import { yearsList } from '../../../components/vehicleConstants.js';
 import { useVehicleBrands } from '../../../hooks/useVehicleBrands.js';
 
+/** Vai trò của nhân viên đang đăng nhập, dùng để tự phân công chính mình. */
+const readCheckInStaffRoles = () => {
+    try {
+        const raw = localStorage.getItem('staffRoles');
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .filter((role) => typeof role === 'string')
+            .map((role) => role.trim().toUpperCase().replace(/^ROLE_/, ''))
+            .filter(Boolean);
+    } catch {
+        return [];
+    }
+};
+
+/** Chuẩn hoá danh sách nhân sự trả về từ API phân công. */
+const normalizeStaffList = (response) => {
+    const payload = response?.data?.data ?? response?.data ?? response;
+    const list = Array.isArray(payload) ? payload : [];
+    return list
+        .map((item) => {
+            if (!item) return null;
+            return {
+                staffId: item.staffId ?? item.id ?? 0,
+                fullName: item.fullName ?? item.name ?? '',
+                phone: item.phone ?? '',
+                avatar: item.avatar ?? '',
+                roles: Array.isArray(item.roles) ? item.roles : [],
+            };
+        })
+        .filter(Boolean);
+};
+
 export default function CheckIn() {
     useScrollToTop(); // Hook tự động cuộn lên đầu trang khi component mount
     const navigate = useNavigate();
@@ -250,9 +287,17 @@ export default function CheckIn() {
     const [safetyInspection, setSafetyInspection] = useState(true);
     const [selectedAdvisorId, setSelectedAdvisorId] = useState('');
 
-    // Advisors for receptionist check-in
+    const [selectedTechnicianId, setSelectedTechnicianId] = useState('');
+
+    // Advisors / technicians for receptionist check-in
     const [advisors, setAdvisors] = useState([]);
     const [isAdvisorsLoading, setIsAdvisorsLoading] = useState(false);
+    const [technicians, setTechnicians] = useState([]);
+    const [isTechniciansLoading, setIsTechniciansLoading] = useState(false);
+
+    // Đánh dấu giá trị đang do hệ thống tự điền (được phép ghi đè), phân biệt
+    // với giá trị lễ tân tự chọn (không bao giờ ghi đè)
+    const staffAutoFilledRef = useRef({ advisor: false, technician: false });
 
     // State quản lý 7 loại ảnh chụp tình trạng xe (Lưu cả File, Blob URL để preview và DataUrl để gửi đi)
     const [photos, setPhotos] = useState(() => ({
@@ -291,6 +336,67 @@ export default function CheckIn() {
         if (advisors.length) return 'Chọn tư vấn viên';
         return 'Không có tư vấn viên';
     }, [advisors.length, isAdvisorsLoading]);
+
+    const technicianPlaceholder = useMemo(() => {
+        if (isTechniciansLoading) return 'Đang tải danh sách kỹ thuật viên...';
+        if (technicians.length) return 'Chọn kỹ thuật viên (có thể để trống)';
+        return 'Không có kỹ thuật viên';
+    }, [isTechniciansLoading, technicians.length]);
+
+    // Nhân viên đang đăng nhập — dùng để tự điền khi lịch chưa phân công sẵn
+    const currentStaff = useMemo(() => {
+        let staffId = 0;
+        try {
+            const raw = localStorage.getItem('staffProfile');
+            const profile = raw ? JSON.parse(raw) : null;
+            staffId = Number(profile?.staffId) || 0;
+        } catch {
+            staffId = 0;
+        }
+        return { staffId, roles: readCheckInStaffRoles() };
+    }, []);
+
+    /** Cho lễ tân biết giá trị đang chọn đến từ đâu. */
+    const buildStaffSourceHint = useCallback(
+        (selectedId, preAssignedId, roleLabel, selfRole) => {
+            if (!selectedId) {
+                return currentStaff.roles.includes(selfRole)
+                    ? `Để trống sẽ tự phân công bạn khi bấm Xác nhận`
+                    : `Chưa chọn ${roleLabel}`;
+            }
+            if (Number(selectedId) === Number(preAssignedId || 0)) {
+                return `${roleLabel} đã phân công sẵn khi tạo lịch`;
+            }
+            return `${roleLabel} do lễ tân chọn`;
+        },
+        [currentStaff.roles]
+    );
+
+    /**
+     * Người đã phân công sẵn có thể không nằm trong danh sách trả về (đã đổi vai
+     * trò, nghỉ việc...). Vẫn phải hiện họ trong dropdown, nếu không select sẽ
+     * trống và lễ tân tưởng chưa phân công.
+     */
+    const withPreAssigned = (list, preAssignedId) => {
+        const id = Number(preAssignedId) || 0;
+        if (!id || list.some((item) => Number(item.staffId) === id)) return list;
+        return [...list, { staffId: id, fullName: `#${id} (đã phân công sẵn)` }];
+    };
+
+    const advisorOptions = withPreAssigned(advisors, booking?.advisorId);
+    const technicianOptions = withPreAssigned(technicians, booking?.technicianId);
+
+    const advisorSourceHint = buildStaffSourceHint(
+        selectedAdvisorId,
+        booking?.advisorId,
+        'tư vấn viên',
+        'ADVISOR'
+    );
+    const technicianSourceHint = selectedTechnicianId
+        ? buildStaffSourceHint(selectedTechnicianId, booking?.technicianId, 'kỹ thuật viên', 'TECHNICIAN')
+        : currentStaff.roles.includes('TECHNICIAN')
+            ? 'Để trống sẽ tự phân công bạn khi bấm Xác nhận'
+            : 'Không bắt buộc — để trống thì cố vấn dịch vụ phân công sau';
 
     const bookingItems = useMemo(() => {
         return collectBookingItems(mergeBookingSnapshotForDisplay(booking, bookingSnapshot));
@@ -392,6 +498,7 @@ export default function CheckIn() {
 		vehicleYear,
         safetyInspection,
         selectedAdvisorId,
+        selectedTechnicianId,
 		photos,
 		photoDescriptions,
 		odometerNumber,
@@ -512,39 +619,38 @@ export default function CheckIn() {
         }
     }, [modalStep]);
 
-    // Load danh sách tư vấn viên cho receptionist check-in 
+    // Load danh sách tư vấn viên + kỹ thuật viên cho receptionist check-in
     useEffect(() => {
         let cancelled = false;
         const run = async () => {
-            try {
-                setIsAdvisorsLoading(true);
-                const token = localStorage.getItem('authToken');
-                const response = await fetchCheckInAdvisors(token);
-                const payload = response?.data?.data ?? response?.data ?? response;
-                const list = Array.isArray(payload) ? payload : [];
+            const token = localStorage.getItem('authToken');
 
-                const normalized = list
-                    .map((item) => {
-                        if (!item) return null;
-                        return {
-                            staffId: item.staffId ?? item.id ?? 0,
-                            fullName: item.fullName ?? item.name ?? '',
-                            phone: item.phone ?? '',
-                            avatar: item.avatar ?? '',
-                            roles: Array.isArray(item.roles) ? item.roles : [],
-                        };
-                    })
-                    .filter(Boolean);
+            setIsAdvisorsLoading(true);
+            setIsTechniciansLoading(true);
 
-                if (cancelled) return;
-                setAdvisors(normalized);
-            } catch (err) {
-                if (cancelled) return;
+            const [advisorResult, technicianResult] = await Promise.allSettled([
+                fetchCheckInAdvisors(token),
+                fetchCheckInTechnicians(token),
+            ]);
+
+            if (cancelled) return;
+
+            if (advisorResult.status === 'fulfilled') {
+                setAdvisors(normalizeStaffList(advisorResult.value));
+            } else {
                 setAdvisors([]);
-                notify(err?.message || 'Không thể tải danh sách tư vấn viên.');
-            } finally {
-                if (!cancelled) setIsAdvisorsLoading(false);
+                notify(advisorResult.reason?.message || 'Không thể tải danh sách tư vấn viên.');
             }
+            setIsAdvisorsLoading(false);
+
+            if (technicianResult.status === 'fulfilled') {
+                setTechnicians(normalizeStaffList(technicianResult.value));
+            } else {
+                // KTV không bắt buộc nên chỉ ghi log, không làm phiền lễ tân.
+                setTechnicians([]);
+                console.warn('Không tải được danh sách kỹ thuật viên:', technicianResult.reason?.message);
+            }
+            setIsTechniciansLoading(false);
         };
 
         run();
@@ -552,6 +658,48 @@ export default function CheckIn() {
             cancelled = true;
         };
     }, [notify]);
+
+    /**
+     * Chỉ điền sẵn người đã phân công từ lúc tạo lịch (/create-booking,
+     * /parts-sales). Không tự gán bản thân ở đây — việc đó để lúc bấm Xác nhận
+     * mà ô vẫn trống (xem handleConfirm).
+     *
+     * Danh sách nhân sự thường tải xong trước khi lookup booking trả về, nên
+     * giá trị hệ thống điền được đánh dấu bằng ref và có thể bị ghi đè khi biết
+     * người đã phân công sẵn — còn giá trị lễ tân tự chọn thì không bao giờ bị đụng.
+     */
+    useEffect(() => {
+        const preAssigned = Number(booking?.advisorId) || 0;
+        if (!preAssigned) return;
+
+        const canOverride = !selectedAdvisorId || staffAutoFilledRef.current.advisor;
+        if (canOverride && Number(selectedAdvisorId) !== preAssigned) {
+            staffAutoFilledRef.current.advisor = true;
+            setSelectedAdvisorId(String(preAssigned));
+        }
+    }, [booking?.advisorId, selectedAdvisorId]);
+
+    useEffect(() => {
+        const preAssigned = Number(booking?.technicianId) || 0;
+        if (!preAssigned) return;
+
+        const canOverride = !selectedTechnicianId || staffAutoFilledRef.current.technician;
+        if (canOverride && Number(selectedTechnicianId) !== preAssigned) {
+            staffAutoFilledRef.current.technician = true;
+            setSelectedTechnicianId(String(preAssigned));
+        }
+    }, [booking?.technicianId, selectedTechnicianId]);
+
+    /** Lễ tân tự chọn — khoá lại, không cho cơ chế tự điền ghi đè nữa. */
+    const handlePickAdvisor = useCallback((value) => {
+        staffAutoFilledRef.current.advisor = false;
+        setSelectedAdvisorId(value);
+    }, []);
+
+    const handlePickTechnician = useCallback((value) => {
+        staffAutoFilledRef.current.technician = false;
+        setSelectedTechnicianId(value);
+    }, []);
 
     const handleConfirmWithValidation = useCallback(() => {
         handleConfirm();
@@ -614,9 +762,23 @@ export default function CheckIn() {
                     return;
                 }
 
-                // Mặc định chọn xe đầu tiên trong danh sách nếu có
                 setIsAddingNewVehicle(false);
-                setSelectedVehicleId(String(list[0].vehicleId));
+
+                // Ưu tiên xe đã chọn sẵn lúc tạo lịch; nếu không thì chỉ tự điền
+                // khi khách chỉ có đúng 1 xe — nhiều xe thì để lễ tân chọn tay
+                // cho khỏi nhận nhầm xe.
+                const preSelectedId = Number(booking?.vehicleId) || 0;
+                const preSelected = preSelectedId
+                    ? list.find((v) => Number(v.vehicleId) === preSelectedId)
+                    : null;
+
+                if (preSelected) {
+                    setSelectedVehicleId(String(preSelected.vehicleId));
+                } else if (list.length === 1) {
+                    setSelectedVehicleId(String(list[0].vehicleId));
+                } else {
+                    setSelectedVehicleId('');
+                }
             } catch (err) {
                 if (cancelled) return;
                 notify(err?.message || 'Không thể tải danh sách xe của khách hàng.');
@@ -632,7 +794,7 @@ export default function CheckIn() {
         return () => {
             cancelled = true; // Chặn cập nhật state nếu component đã unmount
         };
-    }, [booking?.customerId, notify]);
+    }, [booking?.customerId, booking?.vehicleId, notify]);
 
 
     /** * Hàm render giao diện cho từng ô chọn ảnh.
@@ -762,11 +924,65 @@ export default function CheckIn() {
             </div>
 
             <div className={styles.card}>
-                {/* Step 1: Lựa chọn xe của khách hoặc đăng ký xe mới cho khách */}
+                {/* Ảnh biển số: đặt trên cùng vì đây là thao tác đầu tiên khi xe vào xưởng */}
+                <section className={`${styles.stepCard} ${styles.plateCard}`}>
+                    <div className={styles.stepHeader}>
+                        <div className={styles.stepBadgeIcon}>📷</div>
+                        <h2 className={styles.stepTitle}>Ảnh biển số</h2>
+                    </div>
+                    <div className={styles.plateRow}>
+                        {photos.licensePlatePhoto?.url ? (
+                            <div className={styles.platePreviewWrapper}>
+                                <div
+                                    className={styles.platePreview}
+                                    onClick={() => setZoomedPhotoUrl(photos.licensePlatePhoto.url)}
+                                    style={{ cursor: 'zoom-in' }}
+                                >
+                                    <img src={photos.licensePlatePhoto.url} alt="Biển số" />
+                                </div>
+                                <button
+                                    type="button"
+                                    className={styles.compactRemoveBtn}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemovePhoto('licensePlatePhoto');
+                                    }}
+                                    aria-label="Xóa ảnh"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ) : (
+                            <div className={styles.platePlaceholder}>Chưa có ảnh biển số</div>
+                        )}
+
+                        <input
+                            id="checkin-licensePlatePhoto"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0] ?? null;
+                                handlePhotoChange('licensePlatePhoto', file);
+                                e.target.value = ''; // Reset
+                            }}
+                            style={{ display: 'none' }}
+                        />
+
+                        <button
+                            type="button"
+                            className="ui-btn ui-btn--primary"
+                            onClick={() => handlePickPhoto('licensePlatePhoto')}
+                        >
+                            {photos.licensePlatePhoto?.url ? 'Thay đổi ảnh' : 'Chụp / chọn ảnh biển số'}
+                        </button>
+                    </div>
+                </section>
+
+                {/* Step 1: Chọn xe của khách + số km hiện tại */}
                 <section className={styles.stepCard}>
                     <div className={styles.stepHeader}>
                         <div className={styles.stepBadge}>1</div>
-                        <h2 className={styles.stepTitle}>Chọn xe<span className={styles.required}>*</span></h2>
+                        <h2 className={styles.stepTitle}>Chọn xe &amp; số km<span className={styles.required}>*</span></h2>
                     </div>
                     <div className={styles.twoColGrid}>
                         {/* Cột trái: Lựa chọn xe */}
@@ -826,69 +1042,10 @@ export default function CheckIn() {
                             </div>
                         </div>
 
-                        {/* Cột phải: Ảnh biển số */}
-                        <div className="ui-field" style={{ marginBottom: 0 }}>
-                            <label htmlFor="checkin-licensePlatePhoto">Ảnh biển số</label>
-                            <div className={styles.compactPhotoField}>
-                                {photos.licensePlatePhoto?.url ? (
-                                    <div className={styles.compactPhotoPreviewWrapper}>
-                                        <div 
-                                            className={styles.compactPhotoPreview} 
-                                            onClick={() => setZoomedPhotoUrl(photos.licensePlatePhoto.url)}
-                                            style={{ cursor: 'zoom-in' }}
-                                        >
-                                            <img src={photos.licensePlatePhoto.url} alt="Biển số" />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            className={styles.compactRemoveBtn}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleRemovePhoto('licensePlatePhoto');
-                                            }}
-                                            aria-label="Xóa ảnh"
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                ) : null}
-
-                                <input
-                                    id="checkin-licensePlatePhoto"
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0] ?? null;
-                                        handlePhotoChange('licensePlatePhoto', file);
-                                        e.target.value = ''; // Reset
-                                    }}
-                                    style={{ display: 'none' }}
-                                />
-
-                                <button 
-                                    type="button" 
-                                    className="ui-btn ui-btn--ghost" 
-                                    onClick={() => handlePickPhoto('licensePlatePhoto')}
-                                    style={{ flex: 1, minHeight: '44px', padding: '8px 16px' }}
-                                >
-                                    {photos.licensePlatePhoto?.url ? 'Thay đổi' : 'Chọn ảnh'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Step 2: Thông tin phiếu dịch vụ & Số Odometer */}
-                <section className={styles.stepCard}>
-                    <div className={styles.stepHeader}>
-                        <div className={styles.stepBadge}>2</div>
-                        <h2 className={styles.stepTitle}>Bước 2: Thông tin phiếu dịch vụ &amp; Số Odometer<span className={styles.required}>*</span></h2>
-                    </div>
-                    <div className={styles.twoColGrid}>
-                        {/* Cột Odometer */}
+                        {/* Cột phải: Số km hiện tại */}
                         <div>
                             <div className="ui-field" style={{ marginBottom: 0 }}>
-                                <label htmlFor="odometer">Số km hiện tại</label>
+                                <label htmlFor="odometer">Số km hiện tại<span className={styles.required}>*</span></label>
                                 <input
                                     id="odometer"
                                     inputMode="numeric"
@@ -905,25 +1062,62 @@ export default function CheckIn() {
                                 <div className={styles.warningBox} style={{ marginTop: 8 }}>Số km thấp hơn lần trước, vui lòng xác nhận</div>
                             )}
                         </div>
+                    </div>
+                </section>
 
-                        {/* Cột Tư vấn viên */}
-                        <div className="ui-field" style={{ marginBottom: 0 }}>
-                            <label htmlFor="advisorSelect">Tư vấn viên<span className={styles.required}>*</span></label>
-                            <select
-                                id="advisorSelect"
-                                value={selectedAdvisorId}
-                                onChange={(e) => setSelectedAdvisorId(e.target.value)}
-                                disabled={isAdvisorsLoading || !advisors.length}
-                            >
-                                <option value="">{advisorPlaceholder}</option>
-                                {advisors.map((a) => (
-                                    <option key={String(a.staffId)} value={String(a.staffId)}>
-                                        {a.fullName || `#${a.staffId}`}
-                                    </option>
-                                ))}
-                            </select>
+                {/* Step 2: Phân công tư vấn viên & kỹ thuật viên ngay khi tiếp nhận */}
+                <section className={styles.stepCard}>
+                    <div className={styles.stepHeader}>
+                        <div className={styles.stepBadge}>2</div>
+                        <h2 className={styles.stepTitle}>Bước 2: Phân công nhân sự<span className={styles.required}>*</span></h2>
+                    </div>
+                    <div className={styles.twoColGrid}>
+                        <div>
+                            <div className="ui-field" style={{ marginBottom: 0 }}>
+                                <label htmlFor="advisorSelect">Tư vấn viên<span className={styles.required}>*</span></label>
+                                <select
+                                    id="advisorSelect"
+                                    value={selectedAdvisorId}
+                                    onChange={(e) => handlePickAdvisor(e.target.value)}
+                                    disabled={isAdvisorsLoading || !advisors.length}
+                                >
+                                    <option value="">{advisorPlaceholder}</option>
+                                    {advisorOptions.map((a) => (
+                                        <option key={String(a.staffId)} value={String(a.staffId)}>
+                                            {a.fullName || `#${a.staffId}`}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={styles.hint}>{advisorSourceHint}</div>
+                        </div>
+
+                        <div>
+                            <div className="ui-field" style={{ marginBottom: 0 }}>
+                                <label htmlFor="technicianSelect">Kỹ thuật viên</label>
+                                <select
+                                    id="technicianSelect"
+                                    value={selectedTechnicianId}
+                                    onChange={(e) => handlePickTechnician(e.target.value)}
+                                    disabled={isTechniciansLoading || !technicians.length}
+                                >
+                                    <option value="">{technicianPlaceholder}</option>
+                                    {technicianOptions.map((t) => (
+                                        <option key={String(t.staffId)} value={String(t.staffId)}>
+                                            {t.fullName || `#${t.staffId}`}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={styles.hint}>{technicianSourceHint}</div>
                         </div>
                     </div>
+
+                    {!isAdvisorsLoading && !selectedAdvisorId && !currentStaff.roles.includes('ADVISOR') && (
+                        <div className={styles.warningBox} style={{ marginTop: 12 }}>
+                            Lịch hẹn chưa phân công tư vấn viên và bạn không giữ vai trò này — vui lòng chọn tư vấn viên trước khi tạo phiếu.
+                        </div>
+                    )}
                 </section>
 
                 {/* Step 3: Chụp ảnh hiện trạng xe để làm bằng chứng lúc tiếp nhận */}
