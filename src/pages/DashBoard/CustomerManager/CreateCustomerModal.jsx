@@ -3,7 +3,12 @@ import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import { createCustomer } from '../../../services/adminService.js';
 import PartnerFormFields from './PartnerFormFields.jsx';
-import { buildPartnerPayload, emptyPartnerFields, partnerFieldsFromCustomer } from './partnerForm.js';
+import {
+  buildPartnerPayload,
+  createVehiclesForCustomer,
+  emptyPartnerFields,
+  partnerFieldsFromCustomer,
+} from './partnerForm.js';
 import styles from './CustomerManager.module.css';
 
 const PIN_LENGTH = 6;
@@ -243,6 +248,7 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
 
       if (response?.success) {
         toast.success('Thêm khách hàng thành công!');
+        await createVehiclesForCustomer(formData, response?.data?.customerId, token);
         onCreated?.(response?.data);
         close();
       }

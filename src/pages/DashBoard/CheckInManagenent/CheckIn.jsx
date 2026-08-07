@@ -198,7 +198,8 @@ const mergeBookingSnapshotForDisplay = (booking, snapshot) => {
     };
 };
 
-import { VEHICLE_MAKES, POPULAR_MODELS, yearsList } from '../../../components/vehicleConstants.js';
+import { yearsList } from '../../../components/vehicleConstants.js';
+import { useVehicleBrands } from '../../../hooks/useVehicleBrands.js';
 
 export default function CheckIn() {
     useScrollToTop(); // Hook tự động cuộn lên đầu trang khi component mount
@@ -425,16 +426,18 @@ export default function CheckIn() {
         return validation.error;
     }, [licensePlate]);
 
+    const { makes, modelsByMake } = useVehicleBrands();
+
     const filteredMakes = useMemo(() => {
         const q = String(makeSearch || '').trim().toUpperCase();
-        if (!q) return VEHICLE_MAKES;
-        return VEHICLE_MAKES.filter(make => make.toUpperCase().includes(q));
-    }, [makeSearch]);
+        if (!q) return makes;
+        return makes.filter(make => make.toUpperCase().includes(q));
+    }, [makeSearch, makes]);
 
     const suggestedModels = useMemo(() => {
         const make = String(vehicleMake || '').trim().toUpperCase();
-        return POPULAR_MODELS[make] || [];
-    }, [vehicleMake]);
+        return modelsByMake[make] || [];
+    }, [vehicleMake, modelsByMake]);
 
     const handleSelectMake = useCallback((make) => {
         const plate = String(licensePlate || '').trim();

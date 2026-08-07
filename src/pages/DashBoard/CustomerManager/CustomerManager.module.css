@@ -1219,3 +1219,117 @@
   color: #94a3b8;
   cursor: not-allowed;
 }
+
+/* ─── Tab "Xe của đối tác" ────────────────────────────────────────────────── */
+
+.vehicleTab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.existingVehicles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.existingVehicleList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.existingVehicleList li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 13px;
+  color: #475569;
+}
+
+.existingVehicleList strong {
+  color: #0f172a;
+  min-width: 100px;
+}
+
+.vehicleRow {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.vehicleRowHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.vehicleRemoveButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 8px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #dc2626;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.vehicleRemoveButton:hover {
+  background: #fee2e2;
+}
+
+.addVehicleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 9px 16px;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  background: white;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.addVehicleButton:hover {
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.vehicleRowActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vehicleSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vehicleSummary strong {
+  font-size: 15px;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+}
+
+.vehicleSummary span {
+  font-size: 13px;
+  color: #64748b;
+}

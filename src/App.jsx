@@ -37,6 +37,7 @@ import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.j
 import CustomerExcelImport from './pages/DashBoard/CustomerManager/CustomerExcelImport.jsx';
 import StaffManagement from './pages/DashBoard/StaffManagement/StaffManagement.jsx';
 import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.jsx';
+import StaffExcelImport from './pages/DashBoard/StaffManagement/StaffExcelImport.jsx';
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
 import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.jsx';
 import CreateProduct from './pages/DashBoard/PartManagement/CreateProduct.jsx';
@@ -79,6 +80,7 @@ import SliderManagement from './pages/DashBoard/SliderManagement/SliderManagemen
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
 import BugReportManagement from './pages/DashBoard/BugReportManagement/BugReportManagement.jsx';
 import BackendLogViewer from './pages/DashBoard/BackendLogViewer/BackendLogViewer.jsx';
+import VehicleBrandConfig from './pages/DashBoard/VehicleBrandConfig/VehicleBrandConfig.jsx';
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
 import VehicleManagement from './pages/DashBoard/VehicleManagement/VehicleManagement.jsx';
 import WarehouseManagement from './pages/DashBoard/WarehouseManagement/WarehouseManagement.jsx';
@@ -494,6 +496,7 @@ export default function App() {
               <Route path="customer-manager" element={staffRoute(<CustomerManager />, ROLE_GROUP.RECEPTIONIST_OR_ADMIN)} />
               <Route path="customer-excel-import" element={staffRoute(<CustomerExcelImport />, ROLE_GROUP.RECEPTIONIST_OR_ADMIN)} />
               <Route path="staff-manager" element={staffRoute(<StaffManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+              <Route path="staff-excel-import" element={staffRoute(<StaffExcelImport />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="employee-manager" element={staffRoute(<EmployeeManager />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="employee-manager/:staffId" element={staffRoute(<EmployeeProfilePage />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="staff-manager/:staffId" element={staffRoute(<StaffDetailPage />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
@@ -506,6 +509,7 @@ export default function App() {
               <Route path="system-log-management" element={staffRoute(<SystemLogManagement />, ROLE_GROUP.ADMIN_ONLY)} />
               <Route path="backend-logs" element={staffRoute(<BackendLogViewer />, ROLE_GROUP.ADMIN_ONLY)} />
               <Route path="bug-report-management" element={staffRoute(<BugReportManagement />, ROLE_GROUP.ADMIN_ONLY)} />
+              <Route path="vehicle-brand-config" element={staffRoute(<VehicleBrandConfig />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="warehouse-management" element={staffRoute(<WarehouseManagement />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-excel-import" element={staffRoute(<WarehouseExcelImport />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-config" element={staffRoute(<WarehouseConfig />, ROLE_GROUP.WAREHOUSE_ADMIN)} />

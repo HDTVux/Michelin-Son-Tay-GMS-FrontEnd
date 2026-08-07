@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from './CompatibleCarsSelector.module.css';
-import { VEHICLE_MAKES, POPULAR_MODELS, yearsList } from './vehicleConstants.js';
+import { yearsList } from './vehicleConstants.js';
+import { useVehicleBrands } from '../hooks/useVehicleBrands.js';
 import { toast } from 'react-toastify';
 
 export default function CompatibleCarsSelector({ value, onChange, disabled }) {
@@ -39,16 +40,18 @@ export default function CompatibleCarsSelector({ value, onChange, disabled }) {
         }
     }, []);
 
+    const { makes, modelsByMake } = useVehicleBrands();
+
     const filteredMakes = useMemo(() => {
         const q = String(makeSearch || '').trim().toUpperCase();
-        if (!q) return VEHICLE_MAKES;
-        return VEHICLE_MAKES.filter(make => make.toUpperCase().includes(q));
-    }, [makeSearch]);
+        if (!q) return makes;
+        return makes.filter(make => make.toUpperCase().includes(q));
+    }, [makeSearch, makes]);
 
     const suggestedModels = useMemo(() => {
         const make = String(vehicleMake || '').trim().toUpperCase();
-        return POPULAR_MODELS[make] || [];
-    }, [vehicleMake]);
+        return modelsByMake[make] || [];
+    }, [vehicleMake, modelsByMake]);
 
     const handleSelectMake = useCallback((make) => {
         setVehicleMake(make);

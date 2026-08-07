@@ -6,19 +6,12 @@ import {
 import { toast } from 'react-toastify';
 import { Search, Package, Filter, AlertCircle } from 'lucide-react';
 import styles from './CarPartsLookup.module.css';
+import { useVehicleBrands } from '../../hooks/useVehicleBrands.js';
 
-const CAR_DATA = {
-  Toyota: ['Vios', 'Camry', 'Innova', 'Corolla Cross', 'Fortuner', 'Yaris', 'Hilux', 'Wigo'],
-  Honda: ['City', 'Civic', 'CR-V', 'HR-V', 'Accord', 'Brio'],
-  Hyundai: ['Accent', 'Grand i10', 'Elantra', 'Tucson', 'Santa Fe', 'Creta', 'Kona'],
-  Kia: ['Morning', 'Soluto', 'K3', 'Seltos', 'Sorento', 'Carnival', 'Sonet'],
-  Mazda: ['Mazda 2', 'Mazda 3', 'Mazda 6', 'CX-5', 'CX-8', 'BT-50'],
-  Ford: ['Ranger', 'Everest', 'Explorer', 'Territory'],
-  Mitsubishi: ['Xpander', 'Outlander', 'Attrage', 'Triton', 'Pajero Sport'],
-  VinFast: ['Fadil', 'Lux A2.0', 'Lux SA2.0', 'VF e34', 'VF 8', 'VF 9', 'VF 5'],
-};
 
 export default function CarPartsLookup() {
+  const { makes, modelsByMake } = useVehicleBrands();
+
   const [categories, setCategories] = useState([]);
   const [loadingCats, setLoadingCats] = useState(false);
 
@@ -136,7 +129,7 @@ export default function CarPartsLookup() {
               <label>Hãng xe</label>
               <select value={selectedBrand} onChange={handleBrandChange}>
                 <option value="">-- Chọn hãng xe --</option>
-                {Object.keys(CAR_DATA).map((brand) => (
+                {makes.map((brand) => (
                   <option key={brand} value={brand}>
                     {brand}
                   </option>
@@ -153,7 +146,7 @@ export default function CarPartsLookup() {
               >
                 <option value="">-- Chọn dòng xe --</option>
                 {selectedBrand &&
-                  CAR_DATA[selectedBrand]?.map((model) => (
+                  (modelsByMake[selectedBrand.toUpperCase()] || []).map((model) => (
                     <option key={model} value={model}>
                       {model}
                     </option>

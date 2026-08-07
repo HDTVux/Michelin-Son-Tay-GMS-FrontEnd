@@ -3,9 +3,11 @@ import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import { updateCustomer } from '../../../services/adminService.js';
 import PartnerFormFields from './PartnerFormFields.jsx';
+import { fetchCustomerVehicles } from '../../../services/vehicleService.js';
 import {
   buildAutoCustomerCode,
   buildPartnerPayload,
+  createVehiclesForCustomer,
   emptyPartnerFields,
   partnerFieldsFromCustomer,
 } from './partnerForm.js';
@@ -25,6 +27,7 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
 
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [existingVehicles, setExistingVehicles] = useState([]);
 
   useEffect(() => {
     if (!open || !customer) return;
@@ -41,6 +44,25 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
       customerType: customer.customerType || 'INDIVIDUAL',
       isDealer: customer.isDealer || false
     });
+
+    const customerId = customer.customerId || customer.id;
+    if (!customerId) {
+      setExistingVehicles([]);
+      return;
+    }
+
+    let cancelled = false;
+    fetchCustomerVehicles(customerId)
+      .then((res) => {
+        if (!cancelled) setExistingVehicles(res?.data?.vehicles || []);
+      })
+      .catch(() => {
+        if (!cancelled) setExistingVehicles([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, customer]);
 
   const validateEmailValue = (value) => {
@@ -124,6 +146,7 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
 
       if (response?.success) {
         toast.success('Cập nhật thông tin khách hàng thành công!');
+        await createVehiclesForCustomer(formData, customerId, token);
         onUpdated?.({ ...customer, ...payload, ...response?.data });
         onClose();
       }
@@ -156,6 +179,7 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
             errors={errors}
             idPrefix="edit"
             autoCodeValue={buildAutoCustomerCode(customer?.customerId || customer?.id)}
+            existingVehicles={existingVehicles}
           >
             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
               <label className={styles.pinDefaultToggle} style={{ marginTop: '15px' }}>

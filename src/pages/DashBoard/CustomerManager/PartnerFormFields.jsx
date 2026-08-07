@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
-import { Building2, MapPin, Plus, Search, Users } from 'lucide-react';
+import { Building2, Car, MapPin, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import VehiclePickerModal from '../../../components/VehiclePicker/VehiclePickerModal.jsx';
+import { emptyVehicleRow } from './partnerForm.js';
 import {
   createCustomerGroup,
   fetchCustomerGroups,
@@ -16,6 +18,7 @@ const TABS = [
   { id: 'general', label: 'Thông tin chung', icon: Building2 },
   { id: 'legal', label: 'Pháp nhân', icon: Users },
   { id: 'contact', label: 'Liên hệ khác', icon: MapPin },
+  { id: 'vehicles', label: 'Xe của đối tác', icon: Car },
 ];
 
 /** Bỏ tiền tố loại đơn vị hành chính: "Thành phố Hà Nội" -> "Hà Nội". */
@@ -40,7 +43,15 @@ const matchLocation = (list, parts) => {
   return null;
 };
 
-const PartnerFormFields = ({ formData, setFormData, errors = {}, idPrefix, autoCodeValue = '', children }) => {
+const PartnerFormFields = ({
+  formData,
+  setFormData,
+  errors = {},
+  idPrefix,
+  autoCodeValue = '',
+  existingVehicles = [],
+  children,
+}) => {
   const [activeTab, setActiveTab] = useState('general');
 
   const [provinces, setProvinces] = useState([]);
@@ -55,6 +66,7 @@ const PartnerFormFields = ({ formData, setFormData, errors = {}, idPrefix, autoC
   const [savingGroup, setSavingGroup] = useState(false);
 
   const [taxLoading, setTaxLoading] = useState(false);
+  const [editingVehicleKey, setEditingVehicleKey] = useState(null);
 
   const provincesRef = useRef([]);
 
@@ -305,6 +317,39 @@ const PartnerFormFields = ({ formData, setFormData, errors = {}, idPrefix, autoC
     } finally {
       setSavingGroup(false);
     }
+  };
+
+  // ─── Xe của đối tác ───────────────────────────────────────────────────────
+  const vehicles = formData.vehicles || [];
+
+  const setVehicles = (next) => setField('vehicles', next);
+
+  const editingVehicle = vehicles.find((vehicle) => vehicle.key === editingVehicleKey) || null;
+
+  /** Thêm dòng xe rỗng rồi mở luôn modal chọn xe cho dòng đó. */
+  const addVehicleRow = () => {
+    const row = emptyVehicleRow();
+    setVehicles([...vehicles, row]);
+    setEditingVehicleKey(row.key);
+  };
+
+  const removeVehicleRow = (key) => setVehicles(vehicles.filter((vehicle) => vehicle.key !== key));
+
+  /** Đóng modal; dòng vừa thêm mà chưa nhập gì thì bỏ luôn cho gọn. */
+  const handleCancelVehicleEdit = () => {
+    if (editingVehicle && !editingVehicle.licensePlate) {
+      removeVehicleRow(editingVehicle.key);
+    }
+    setEditingVehicleKey(null);
+  };
+
+  const handleSubmitVehicleEdit = (value) => {
+    setVehicles(
+      vehicles.map((vehicle) =>
+        vehicle.key === editingVehicleKey ? { ...vehicle, ...value } : vehicle
+      )
+    );
+    setEditingVehicleKey(null);
   };
 
   const handlePickCurrentLocation = () => {
@@ -937,6 +982,79 @@ const PartnerFormFields = ({ formData, setFormData, errors = {}, idPrefix, autoC
           </div>
         </div>
       )}
+
+      {/* ── Tab 4: Xe của đối tác ──────────────────────────────────────── */}
+      {activeTab === 'vehicles' && (
+        <div className={styles.vehicleTab}>
+          {existingVehicles.length > 0 && (
+            <div className={styles.existingVehicles}>
+              <span className={styles.label}>Xe đã có trong hệ thống</span>
+              <ul className={styles.existingVehicleList}>
+                {existingVehicles.map((vehicle) => (
+                  <li key={vehicle.vehicleId || vehicle.licensePlate}>
+                    <strong>{vehicle.licensePlate}</strong>
+                    <span>
+                      {[vehicle.brand || vehicle.make, vehicle.model, vehicle.year || vehicle.manufactureYear]
+                        .filter(Boolean)
+                        .join(' · ') || 'Chưa có thông tin xe'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {vehicles.length === 0 ? (
+            <p className={styles.fieldHint}>
+              Chưa có xe nào được thêm. Xe sẽ được tạo cho đối tác ngay sau khi lưu hồ sơ.
+            </p>
+          ) : (
+            vehicles.map((vehicle, index) => (
+              <div key={vehicle.key} className={styles.vehicleRow}>
+                <div className={styles.vehicleRowHeader}>
+                  <span className={styles.label}>Xe {index + 1}</span>
+                  <div className={styles.vehicleRowActions}>
+                    <button
+                      type="button"
+                      className={styles.lookupButton}
+                      onClick={() => setEditingVehicleKey(vehicle.key)}
+                    >
+                      <Pencil size={13} /> Sửa
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.vehicleRemoveButton}
+                      onClick={() => removeVehicleRow(vehicle.key)}
+                      title="Xoá xe này khỏi danh sách"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.vehicleSummary}>
+                  <strong>{vehicle.licensePlate || 'Chưa có biển số'}</strong>
+                  <span>
+                    {[vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' · ') ||
+                      'Chưa có thông tin xe'}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+
+          <button type="button" className={styles.addVehicleButton} onClick={addVehicleRow}>
+            <Plus size={14} /> Thêm xe
+          </button>
+        </div>
+      )}
+
+      <VehiclePickerModal
+        open={Boolean(editingVehicle)}
+        initialVehicle={editingVehicle}
+        onCancel={handleCancelVehicleEdit}
+        onSubmit={handleSubmitVehicleEdit}
+      />
     </div>
   );
 };
@@ -947,6 +1065,7 @@ PartnerFormFields.propTypes = {
   errors: PropTypes.object,
   idPrefix: PropTypes.string.isRequired,
   autoCodeValue: PropTypes.string,
+  existingVehicles: PropTypes.array,
   children: PropTypes.node,
 };
 

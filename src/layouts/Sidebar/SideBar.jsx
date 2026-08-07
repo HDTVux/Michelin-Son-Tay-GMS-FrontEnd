@@ -41,6 +41,7 @@ import {
     Building2,
     Search,
     ShoppingCart,
+    Car,
     MapPin,
     ScanQrCode,
     ListTodo,
@@ -238,6 +239,7 @@ const NAV_GROUPS = [
                     { id: 'system-log-management', label: 'Nhật ký hệ thống', path: '/system-log-management', icon: <Terminal size={18} />, roles: [STAFF_ROLE.ADMIN] },
                     { id: 'backend-logs', label: 'Log Backend', path: '/backend-logs', icon: <FileClock size={18} />, roles: [STAFF_ROLE.ADMIN] },
                     { id: 'bug-report-management', label: 'Báo lỗi phần mềm', path: '/bug-report-management', icon: <Bug size={18} />, roles: [STAFF_ROLE.ADMIN] },
+                    { id: 'vehicle-brand-config', label: 'Cấu hình hãng xe', path: '/vehicle-brand-config', icon: <Car size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                 ]
             }
         ],

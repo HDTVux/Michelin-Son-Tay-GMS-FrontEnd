@@ -2,6 +2,8 @@
  * Trạng thái form và chuyển đổi payload dùng chung cho Danh bạ đối tác
  * (modal thêm mới và modal chỉnh sửa).
  */
+import { toast } from 'react-toastify';
+import { createCheckInVehicle } from '../../../services/checkInService.js';
 
 export const PARTNER_TEXT_FIELDS = [
   // Thông tin chung
@@ -42,8 +44,37 @@ export const emptyPartnerFields = () => {
   base.customerGroupId = '';
   // Mặc định để hệ thống tự sinh mã khách hàng khi thêm mới.
   base.autoCustomerCode = true;
+  // Xe sẽ được tạo cho đối tác ngay sau khi lưu hồ sơ.
+  base.vehicles = [];
   return base;
 };
+
+/** Một dòng xe trống trong tab "Xe của đối tác". */
+export const emptyVehicleRow = () => ({
+  key: `veh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  licensePlate: '',
+  make: '',
+  model: '',
+  year: '',
+});
+
+/**
+ * Chuẩn hoá danh sách xe thành payload cho POST
+ * /api/receptionist/check-in/vehicles/create. Bỏ qua dòng chưa nhập biển số.
+ */
+export const buildVehiclePayloads = (formData, customerId) =>
+  (formData.vehicles || [])
+    .filter((vehicle) => (vehicle.licensePlate || '').trim())
+    .map((vehicle) => {
+      const year = Number((vehicle.year || '').toString().trim());
+      return {
+        customerId: Number(customerId),
+        licensePlate: vehicle.licensePlate.trim().toUpperCase(),
+        make: (vehicle.make || '').trim() || null,
+        model: (vehicle.model || '').trim() || null,
+        year: Number.isFinite(year) && year > 0 ? year : null,
+      };
+    });
 
 /** Mã khách hàng hệ thống sinh theo id hồ sơ. */
 export const buildAutoCustomerCode = (customerId) => {
@@ -63,6 +94,7 @@ export const partnerFieldsFromCustomer = (customer) => {
   });
   // Hồ sơ đã có mã thì giữ mã đó, chưa có mới bật chế độ tự sinh.
   base.autoCustomerCode = !customer.customerCode;
+  base.vehicles = [];
   return base;
 };
 
@@ -93,6 +125,39 @@ export const buildPartnerPayload = (formData) => {
   payload.customerGroupId = formData.customerGroupId !== '' && Number.isFinite(groupId) ? groupId : null;
 
   return payload;
+};
+
+/**
+ * Tạo lần lượt các xe đã khai trong tab "Xe của đối tác".
+ * Lỗi từng xe (trùng biển số...) được báo riêng, không chặn các xe còn lại và
+ * không làm hỏng kết quả lưu hồ sơ đã thành công trước đó.
+ *
+ * @returns {Promise<number>} số xe tạo thành công
+ */
+export const createVehiclesForCustomer = async (formData, customerId, token) => {
+  const payloads = buildVehiclePayloads(formData, customerId);
+  if (payloads.length === 0) return 0;
+
+  if (!customerId) {
+    toast.warning('Đã lưu hồ sơ nhưng không xác định được mã khách hàng nên chưa tạo được xe.');
+    return 0;
+  }
+
+  let created = 0;
+  const failures = [];
+
+  for (const payload of payloads) {
+    try {
+      await createCheckInVehicle(payload, token);
+      created += 1;
+    } catch (error) {
+      failures.push(`${payload.licensePlate}: ${error.message || 'lỗi không xác định'}`);
+    }
+  }
+
+  if (created > 0) toast.success(`Đã tạo ${created} xe cho đối tác`);
+  failures.forEach((message) => toast.error(`Không tạo được xe ${message}`));
+  return created;
 };
 
 /** Ghép các thành phần địa chỉ thành một dòng để hiển thị. */

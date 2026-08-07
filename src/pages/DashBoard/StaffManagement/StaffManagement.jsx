@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
+import * as XLSX from 'xlsx';
 import baseStyles from '../BookingRequestManagement/BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { getAvatarSrc, handleAvatarError } from '../../../assets/defaultAvatar.js';
@@ -376,6 +377,118 @@ export default function StaffManagement() {
 		navigate(`/staff-manager/${staffId}`);
 	};
 
+	const handleExportExcel = () => {
+		try {
+			if (!Array.isArray(staff) || staff.length === 0) {
+				toast.info('Không có dữ liệu nhân viên để xuất Excel.');
+				return;
+			}
+
+			const headers = [
+				'STT',
+				'Staff ID',
+				'Mã nhân viên (employee_code)',
+				'Họ và tên',
+				'Số điện thoại',
+				'Email',
+				'Chức vụ',
+				'Bộ phận',
+				'Vai trò (Roles)',
+				'Trạng thái',
+				'Giới tính',
+				'Ngày sinh',
+				'Ngày vào làm',
+				'Nghỉ việc',
+				'Trình độ',
+				'Ngành nghề',
+				'HK thường trú',
+				'Nơi sinh',
+				'Địa chỉ hiện tại',
+				'Người đại diện',
+				'Dân tộc',
+				'Tôn giáo',
+				'Quốc tịch',
+				'Số CMND/CCCD',
+				'Nơi cấp CMND',
+				'Ngày cấp CMND',
+				'Mã số thuế TNCN',
+				'Nơi cấp Mã TNCN',
+				'Ngày cấp Mã TNCN',
+				'Số sổ BHXH',
+				'Nơi cấp BHXH',
+				'Ngày cấp BHXH',
+				'TG đã đóng BHXH',
+				'TG đã đóng BHTN'
+			];
+
+			const rows = staff.map((s, idx) => {
+				const roleNames = Array.isArray(s.roles)
+					? s.roles.map((r) => r.roleName || r.roleCode).filter(Boolean).join(', ')
+					: s.position || '';
+
+				return [
+					idx + 1,
+					s.staffId || '',
+					s.employeeCode || s.employeeNo || s.staffId || '',
+					s.fullName || '',
+					s.phone || '',
+					s.email || '',
+					s.position || '',
+					s.department || '',
+					roleNames,
+					getStaffStatusMeta({ status: resolveStaffStatus(s), isActive: s.isActive }).label,
+					s.gender === 'MALE' ? 'Nam' : s.gender === 'FEMALE' ? 'Nữ' : s.gender || '',
+					s.dob ? new Date(s.dob).toLocaleDateString('vi-VN') : '',
+					s.startDate ? new Date(s.startDate).toLocaleDateString('vi-VN') : '',
+					s.isResigned ? 'Có' : 'Không',
+					s.educationLevel || '',
+					s.profession || '',
+					s.permanentAddress || '',
+					s.placeOfBirth || '',
+					s.address || '',
+					s.representative || '',
+					s.ethnicity || '',
+					s.religion || '',
+					s.nationality || '',
+					s.identityCard || '',
+					s.idIssuePlace || '',
+					s.idIssueDate ? new Date(s.idIssueDate).toLocaleDateString('vi-VN') : '',
+					s.pitCode || '',
+					s.pitIssuePlace || '',
+					s.pitIssueDate ? new Date(s.pitIssueDate).toLocaleDateString('vi-VN') : '',
+					s.socialInsuranceCode || '',
+					s.siIssuePlace || '',
+					s.siIssueDate ? new Date(s.siIssueDate).toLocaleDateString('vi-VN') : '',
+					s.siPaidPeriod || '',
+					s.uiPaidPeriod || ''
+				];
+			});
+
+			const wb = XLSX.utils.book_new();
+			const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+			XLSX.utils.book_append_sheet(wb, ws, 'DanhSachNhanVien');
+
+			const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+			const blob = new Blob([wbout], {
+				type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+			});
+			const url = globalThis.URL.createObjectURL(blob);
+
+			const dateStr = new Date().toISOString().split('T')[0];
+			const a = globalThis.document.createElement('a');
+			a.href = url;
+			a.download = `danh-sach-nhan-vien_${dateStr}.xlsx`;
+			globalThis.document.body.appendChild(a);
+			a.click();
+			a.remove();
+			globalThis.URL.revokeObjectURL(url);
+
+			toast.success('Xuất file Excel thành công.');
+		} catch (err) {
+			toast.error('Không thể xuất file Excel: ' + (err?.message || ''));
+		}
+	};
+
 	return (
 		<div className={baseStyles['booking-page']}>
 			<div className={baseStyles['booking-layout']}>
@@ -392,6 +505,20 @@ export default function StaffManagement() {
 									onClick={() => setShowAddModal(true)}
 								>
 									Thêm tài khoản
+								</button>
+								<button
+									type="button"
+									className={baseStyles['ghost-button']}
+									onClick={() => navigate('/staff-excel-import')}
+								>
+									Nhập Excel
+								</button>
+								<button
+									type="button"
+									className={baseStyles['ghost-button']}
+									onClick={handleExportExcel}
+								>
+									Xuất Excel
 								</button>
 								<button type="button" className={baseStyles['ghost-button']}>
 									{totalElements} nhân viên
