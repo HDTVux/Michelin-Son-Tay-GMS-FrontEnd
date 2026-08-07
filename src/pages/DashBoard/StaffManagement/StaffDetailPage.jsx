@@ -35,9 +35,15 @@ function toDateInputValue(isoString) {
 	return `${yyyy}-${mm}-${dd}`;
 }
 
+function formatDateVi(isoString) {
+	if (!isoString) return '-';
+	const d = new Date(isoString);
+	if (Number.isNaN(d.getTime())) return String(isoString);
+	return d.toLocaleDateString('vi-VN');
+}
+
 function toIsoFromDateInput(dateValue) {
 	if (!dateValue) return null;
-	// Keep date stable regardless of local timezone by using UTC midnight.
 	return new Date(`${dateValue}T00:00:00.000Z`).toISOString();
 }
 
@@ -54,7 +60,33 @@ function buildFormDataFromStaff(staff) {
 		position: staff?.position || '',
 		status: normalizeStaffStatus(staff?.status) || 'ACTIVE',
 		dob: toDateInputValue(staff?.dob),
-		roleIds
+		roleIds,
+
+		// Detailed Employee Attributes
+		gender: staff?.gender || 'MALE',
+		startDate: toDateInputValue(staff?.startDate),
+		isResigned: !!staff?.isResigned,
+		permanentAddress: staff?.permanentAddress || '',
+		placeOfBirth: staff?.placeOfBirth || '',
+		address: staff?.address || '',
+		representative: staff?.representative || '',
+		ethnicity: staff?.ethnicity || '',
+		religion: staff?.religion || '',
+		nationality: staff?.nationality || 'Việt Nam',
+		identityCard: staff?.identityCard || '',
+		idIssuePlace: staff?.idIssuePlace || '',
+		idIssueDate: toDateInputValue(staff?.idIssueDate),
+		pitCode: staff?.pitCode || '',
+		pitIssuePlace: staff?.pitIssuePlace || '',
+		pitIssueDate: toDateInputValue(staff?.pitIssueDate),
+		socialInsuranceCode: staff?.socialInsuranceCode || '',
+		siIssuePlace: staff?.siIssuePlace || '',
+		siIssueDate: toDateInputValue(staff?.siIssueDate),
+		siPaidPeriod: staff?.siPaidPeriod || '',
+		uiPaidPeriod: staff?.uiPaidPeriod || '',
+		educationLevel: staff?.educationLevel || '',
+		profession: staff?.profession || '',
+		department: staff?.department || ''
 	};
 }
 
@@ -89,7 +121,33 @@ function buildUpdatePayload(formData, roleOptions) {
 		position: String(formData?.position || '').trim(),
 		status: normalizeStaffStatus(formData?.status) || 'ACTIVE',
 		dob: toIsoFromDateInput(formData?.dob),
-		roles: buildRolesPayload(formData?.roleIds, roleOptions)
+		roles: buildRolesPayload(formData?.roleIds, roleOptions),
+
+		// Extended attributes
+		gender: formData?.gender || null,
+		startDate: toIsoFromDateInput(formData?.startDate),
+		isResigned: !!formData?.isResigned,
+		permanentAddress: String(formData?.permanentAddress || '').trim() || null,
+		placeOfBirth: String(formData?.placeOfBirth || '').trim() || null,
+		address: String(formData?.address || '').trim() || null,
+		representative: String(formData?.representative || '').trim() || null,
+		ethnicity: String(formData?.ethnicity || '').trim() || null,
+		religion: String(formData?.religion || '').trim() || null,
+		nationality: String(formData?.nationality || '').trim() || null,
+		identityCard: String(formData?.identityCard || '').trim() || null,
+		idIssuePlace: String(formData?.idIssuePlace || '').trim() || null,
+		idIssueDate: toIsoFromDateInput(formData?.idIssueDate),
+		pitCode: String(formData?.pitCode || '').trim() || null,
+		pitIssuePlace: String(formData?.pitIssuePlace || '').trim() || null,
+		pitIssueDate: toIsoFromDateInput(formData?.pitIssueDate),
+		socialInsuranceCode: String(formData?.socialInsuranceCode || '').trim() || null,
+		siIssuePlace: String(formData?.siIssuePlace || '').trim() || null,
+		siIssueDate: toIsoFromDateInput(formData?.siIssueDate),
+		siPaidPeriod: String(formData?.siPaidPeriod || '').trim() || null,
+		uiPaidPeriod: String(formData?.uiPaidPeriod || '').trim() || null,
+		educationLevel: String(formData?.educationLevel || '').trim() || null,
+		profession: String(formData?.profession || '').trim() || null,
+		department: String(formData?.department || '').trim() || null
 	};
 }
 
@@ -231,8 +289,9 @@ export default function StaffDetailPage() {
 	};
 
 	const handleFieldChange = (e) => {
-		const { name, value } = e.target;
-		setFormData((prev) => ({ ...prev, [name]: value }));
+		const { name, value, type, checked } = e.target;
+		const fieldValue = type === 'checkbox' ? checked : value;
+		setFormData((prev) => ({ ...prev, [name]: fieldValue }));
 	};
 
 	const handleToggleRole = (roleId) => {
@@ -293,7 +352,7 @@ export default function StaffDetailPage() {
 								>
 									Quay lại
 								</button>
-								<div className={styles.title}>Chi tiết nhân viên</div>
+								<div className={styles.title}>Hồ sơ chi tiết nhân viên</div>
 							</div>
 							<div className={styles.headerRight}>
 								{isEditing ? (
@@ -343,153 +402,540 @@ export default function StaffDetailPage() {
 
 									<div className={styles.profileMeta}>
 										<div className={styles.name}>{data.fullName || '-'}</div>
-										<div className={styles.subline}>Mã nhân viên: {data.staffId ?? '-'}</div>
+										<div className={styles.subline}>
+											Mã nhân viên (employee_code): <strong>{data.employeeCode || data.employeeNo || data.staffId || '-'}</strong>
+										</div>
 										<div className={styles.statusRow}>
 											<span
 												className={`${baseStyles['status-badge']} ${baseStyles['status-badge--' + statusMeta.tone]}`}
 											>
 												{statusMeta.label}
 											</span>
+											{data.isResigned && (
+												<span className={`${baseStyles['status-badge']} ${baseStyles['status-badge--danger']}`}>
+													Đã nghỉ việc
+												</span>
+											)}
 										</div>
 									</div>
 								</div>
 
-								{(() => {
-									const roleViewContent =
-										roleLabels.length === 0 ? (
-											<div className={styles.value}>-</div>
-										) : (
-											<div className={styles.roleList} aria-label="Danh sách vai trò">
-												{roleLabels.map((label) => (
-													<span key={label} className={styles.roleChip}>
-														{label}
-													</span>
-												))}
-											</div>
-										);
+								{/* Section 1: Thông tin cơ bản & Công việc */}
+								<div style={{ marginTop: '20px' }}>
+									<h4 style={{ margin: '0 0 12px', fontSize: '15px', fontWeight: 700 }}>1. Thông tin cơ bản &amp; Chức danh</h4>
+									<div className={styles.grid}>
+										<div className={styles.field}>
+											<div className={styles.label}>Họ và tên</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="fullName"
+													value={formData.fullName}
+													onChange={handleFieldChange}
+													placeholder="Họ và tên"
+												/>
+											) : (
+												<div className={styles.value}>{data.fullName || '-'}</div>
+											)}
+										</div>
 
-									const selectedRolesContent =
-										selectedRoleLabels.length === 0 ? (
-											<div className={styles.value}>-</div>
-										) : (
-											<div className={styles.roleList} aria-label="Vai trò đã chọn">
-												{selectedRoleLabels.map((label) => (
-													<span key={label} className={styles.roleChip}>
-														{label}
-													</span>
-												))}
-											</div>
-										);
+										<div className={styles.field}>
+											<div className={styles.label}>Số điện thoại</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="phone"
+													value={formData.phone}
+													onChange={handleFieldChange}
+													placeholder="Số điện thoại"
+												/>
+											) : (
+												<div className={styles.value}>{data.phone || '-'}</div>
+											)}
+										</div>
 
-									return (
-										<div className={styles.grid}>
-									<div className={styles.field}>
-										<div className={styles.label}>Số điện thoại</div>
-										{isEditing ? (
-											<input
-												className={styles.input}
-												name="phone"
-												value={formData.phone}
-												onChange={handleFieldChange}
-												placeholder="Số điện thoại"
-											/>
-										) : (
-											<div className={styles.value}>{data.phone || '-'}</div>
-										)}
-									</div>
-									<div className={styles.field}>
-										<div className={styles.label}>Email</div>
-										<div className={styles.value}>{data.email || '-'}</div>
-									</div>
-									<div className={styles.field}>
-										<div className={styles.label}>Chức vụ</div>
-										{isEditing ? (
-											<input
-												className={styles.input}
-												name="position"
-												value={formData.position}
-												onChange={handleFieldChange}
-												placeholder="Chức vụ"
-											/>
-										) : (
-											<div className={styles.value}>{data.position || '-'}</div>
-										)}
-									</div>
-									<div className={styles.field}>
-										<div className={styles.label}>Vai trò</div>
-										{isEditing ? (
-											<>
-												<div className={styles.checkboxList} aria-label="Chọn vai trò">
-													{(roleOptions || []).map((r) => {
-														const checked = (formData.roleIds || []).map(Number).includes(r.roleId);
-														return (
-															<label key={r.roleId} className={styles.checkboxItem}>
-																<input
-																	type="checkbox"
-																	checked={checked}
-																	onChange={() => handleToggleRole(r.roleId)}
-																/>
-																<span>{r.label}</span>
-															</label>
-														);
-													})}
+										<div className={styles.field}>
+											<div className={styles.label}>Email</div>
+											<div className={styles.value}>{data.email || '-'}</div>
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Giới tính</div>
+											{isEditing ? (
+												<select
+													className={styles.select}
+													name="gender"
+													value={formData.gender}
+													onChange={handleFieldChange}
+												>
+													<option value="MALE">Nam</option>
+													<option value="FEMALE">Nữ</option>
+													<option value="OTHER">Khác</option>
+												</select>
+											) : (
+												<div className={styles.value}>{data.gender === 'MALE' ? 'Nam' : data.gender === 'FEMALE' ? 'Nữ' : data.gender || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Ngày sinh</div>
+											{isEditing ? (
+												<input
+													type="date"
+													className={styles.input}
+													name="dob"
+													value={formData.dob}
+													onChange={handleFieldChange}
+												/>
+											) : (
+												<div className={styles.value}>{formatDateVi(data.dob)}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Ngày vào làm</div>
+											{isEditing ? (
+												<input
+													type="date"
+													className={styles.input}
+													name="startDate"
+													value={formData.startDate}
+													onChange={handleFieldChange}
+												/>
+											) : (
+												<div className={styles.value}>{formatDateVi(data.startDate)}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Nghỉ việc</div>
+											{isEditing ? (
+												<label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+													<input
+														type="checkbox"
+														name="isResigned"
+														checked={formData.isResigned}
+														onChange={handleFieldChange}
+													/>
+													<span>Đã nghỉ việc</span>
+												</label>
+											) : (
+												<div className={styles.value}>{data.isResigned ? 'Có' : 'Không'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Chức vụ</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="position"
+													value={formData.position}
+													onChange={handleFieldChange}
+													placeholder="Chức vụ"
+												/>
+											) : (
+												<div className={styles.value}>{data.position || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Bộ phận</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="department"
+													value={formData.department}
+													onChange={handleFieldChange}
+													placeholder="Bộ phận"
+												/>
+											) : (
+												<div className={styles.value}>{data.department || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Trình độ</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="educationLevel"
+													value={formData.educationLevel}
+													onChange={handleFieldChange}
+													placeholder="Trình độ học vấn"
+												/>
+											) : (
+												<div className={styles.value}>{data.educationLevel || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Ngành nghề</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="profession"
+													value={formData.profession}
+													onChange={handleFieldChange}
+													placeholder="Ngành nghề chuyên môn"
+												/>
+											) : (
+												<div className={styles.value}>{data.profession || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Trạng thái hệ thống</div>
+											{isEditing ? (
+												<select
+													className={styles.select}
+													name="status"
+													value={formData.status}
+													onChange={handleFieldChange}
+												>
+													<option value="ACTIVE">Đang hoạt động</option>
+													<option value="INACTIVE">Ngưng hoạt động</option>
+													<option value="LOCKED">Đã khóa</option>
+													<option value="DELETED">Đã xóa</option>
+												</select>
+											) : (
+												<div className={styles.value}>{statusMeta.label}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Vai trò</div>
+											{isEditing ? (
+												<>
+													<div className={styles.checkboxList} aria-label="Chọn vai trò">
+														{(roleOptions || []).map((r) => {
+															const checked = (formData.roleIds || []).map(Number).includes(r.roleId);
+															return (
+																<label key={r.roleId} className={styles.checkboxItem}>
+																	<input
+																		type="checkbox"
+																		checked={checked}
+																		onChange={() => handleToggleRole(r.roleId)}
+																	/>
+																	<span>{r.label}</span>
+																</label>
+															);
+														})}
+													</div>
+													{selectedRoleLabels.length === 0 ? (
+														<div className={styles.value}>-</div>
+													) : (
+														<div className={styles.roleList} aria-label="Vai trò đã chọn">
+															{selectedRoleLabels.map((label) => (
+																<span key={label} className={styles.roleChip}>
+																	{label}
+																</span>
+															))}
+														</div>
+													)}
+												</>
+											) : roleLabels.length === 0 ? (
+												<div className={styles.value}>-</div>
+											) : (
+												<div className={styles.roleList} aria-label="Danh sách vai trò">
+													{roleLabels.map((label) => (
+														<span key={label} className={styles.roleChip}>
+															{label}
+														</span>
+													))}
 												</div>
-												{selectedRolesContent}
-											</>
-										) : (
-											roleViewContent
-										)}
+											)}
+										</div>
 									</div>
-									<div className={styles.field}>
-										<div className={styles.label}>Họ và tên</div>
-										{isEditing ? (
-											<input
-												className={styles.input}
-												name="fullName"
-												value={formData.fullName}
-												onChange={handleFieldChange}
-												placeholder="Họ và tên"
-											/>
-										) : (
-											<div className={styles.value}>{data.fullName || '-'}</div>
-										)}
-									</div>
-									<div className={styles.field}>
-										<div className={styles.label}>Trạng thái</div>
-										{isEditing ? (
-											<select
-												className={styles.select}
-												name="status"
-												value={formData.status}
-												onChange={handleFieldChange}
-											>
-												<option value="ACTIVE">Đang hoạt động</option>
-												<option value="INACTIVE">Ngưng hoạt động</option>
-												<option value="LOCKED">Đã khóa</option>
-												<option value="DELETED">Đã xóa</option>
-											</select>
-										) : (
-											<div className={styles.value}>{statusMeta.label}</div>
-										)}
-									</div>
-									<div className={styles.field}>
-										<div className={styles.label}>Ngày sinh</div>
-										{isEditing ? (
-											<input
-												type="date"
-												className={styles.input}
-												name="dob"
-												value={formData.dob}
-												onChange={handleFieldChange}
-											/>
-										) : (
-											<div className={styles.value}>{data.dob ? new Date(data.dob).toLocaleDateString('vi-VN') : '-'}</div>
-										)}
-									</div>
-									{/* Avatar URL removed per requirements */}
 								</div>
-									);
-								})()}
+
+								{/* Section 2: Địa chỉ & Nhân thân */}
+								<div style={{ marginTop: '20px' }}>
+									<h4 style={{ margin: '0 0 12px', fontSize: '15px', fontWeight: 700 }}>2. Địa chỉ &amp; Nhân thân</h4>
+									<div className={styles.grid}>
+										<div className={styles.field}>
+											<div className={styles.label}>HK thường trú</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="permanentAddress"
+													value={formData.permanentAddress}
+													onChange={handleFieldChange}
+													placeholder="Hộ khẩu thường trú"
+												/>
+											) : (
+												<div className={styles.value}>{data.permanentAddress || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Nơi sinh</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="placeOfBirth"
+													value={formData.placeOfBirth}
+													onChange={handleFieldChange}
+													placeholder="Nơi sinh"
+												/>
+											) : (
+												<div className={styles.value}>{data.placeOfBirth || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Địa chỉ hiện tại</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="address"
+													value={formData.address}
+													onChange={handleFieldChange}
+													placeholder="Địa chỉ hiện tại"
+												/>
+											) : (
+												<div className={styles.value}>{data.address || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Người đại diện</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="representative"
+													value={formData.representative}
+													onChange={handleFieldChange}
+													placeholder="Người đại diện"
+												/>
+											) : (
+												<div className={styles.value}>{data.representative || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Dân tộc</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="ethnicity"
+													value={formData.ethnicity}
+													onChange={handleFieldChange}
+													placeholder="Dân tộc"
+												/>
+											) : (
+												<div className={styles.value}>{data.ethnicity || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Tôn giáo</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="religion"
+													value={formData.religion}
+													onChange={handleFieldChange}
+													placeholder="Tôn giáo"
+												/>
+											) : (
+												<div className={styles.value}>{data.religion || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Quốc tịch</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="nationality"
+													value={formData.nationality}
+													onChange={handleFieldChange}
+													placeholder="Quốc tịch"
+												/>
+											) : (
+												<div className={styles.value}>{data.nationality || '-'}</div>
+											)}
+										</div>
+									</div>
+								</div>
+
+								{/* Section 3: Giấy tờ & Thuế */}
+								<div style={{ marginTop: '20px' }}>
+									<h4 style={{ margin: '0 0 12px', fontSize: '15px', fontWeight: 700 }}>3. Giấy tờ CMND / CCCD &amp; Thuế TNCN</h4>
+									<div className={styles.grid}>
+										<div className={styles.field}>
+											<div className={styles.label}>Số CMND / CCCD</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="identityCard"
+													value={formData.identityCard}
+													onChange={handleFieldChange}
+													placeholder="Số CMND / CCCD"
+												/>
+											) : (
+												<div className={styles.value}>{data.identityCard || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Nơi cấp CMND</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="idIssuePlace"
+													value={formData.idIssuePlace}
+													onChange={handleFieldChange}
+													placeholder="Nơi cấp CMND"
+												/>
+											) : (
+												<div className={styles.value}>{data.idIssuePlace || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Ngày cấp CMND</div>
+											{isEditing ? (
+												<input
+													type="date"
+													className={styles.input}
+													name="idIssueDate"
+													value={formData.idIssueDate}
+													onChange={handleFieldChange}
+												/>
+											) : (
+												<div className={styles.value}>{formatDateVi(data.idIssueDate)}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Mã số thuế TNCN</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="pitCode"
+													value={formData.pitCode}
+													onChange={handleFieldChange}
+													placeholder="Mã TNCN"
+												/>
+											) : (
+												<div className={styles.value}>{data.pitCode || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Nơi cấp Mã TNCN</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="pitIssuePlace"
+													value={formData.pitIssuePlace}
+													onChange={handleFieldChange}
+													placeholder="Nơi cấp Mã TNCN"
+												/>
+											) : (
+												<div className={styles.value}>{data.pitIssuePlace || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Ngày cấp Mã TNCN</div>
+											{isEditing ? (
+												<input
+													type="date"
+													className={styles.input}
+													name="pitIssueDate"
+													value={formData.pitIssueDate}
+													onChange={handleFieldChange}
+												/>
+											) : (
+												<div className={styles.value}>{formatDateVi(data.pitIssueDate)}</div>
+											)}
+										</div>
+									</div>
+								</div>
+
+								{/* Section 4: Bảo hiểm xã hội */}
+								<div style={{ marginTop: '20px' }}>
+									<h4 style={{ margin: '0 0 12px', fontSize: '15px', fontWeight: 700 }}>4. Bảo hiểm xã hội (BHXH) &amp; Thất nghiệp (BHTN)</h4>
+									<div className={styles.grid}>
+										<div className={styles.field}>
+											<div className={styles.label}>Số sổ BHXH</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="socialInsuranceCode"
+													value={formData.socialInsuranceCode}
+													onChange={handleFieldChange}
+													placeholder="Số sổ BHXH"
+												/>
+											) : (
+												<div className={styles.value}>{data.socialInsuranceCode || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Nơi cấp BHXH</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="siIssuePlace"
+													value={formData.siIssuePlace}
+													onChange={handleFieldChange}
+													placeholder="Nơi cấp BHXH"
+												/>
+											) : (
+												<div className={styles.value}>{data.siIssuePlace || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>Ngày cấp BHXH</div>
+											{isEditing ? (
+												<input
+													type="date"
+													className={styles.input}
+													name="siIssueDate"
+													value={formData.siIssueDate}
+													onChange={handleFieldChange}
+												/>
+											) : (
+												<div className={styles.value}>{formatDateVi(data.siIssueDate)}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>TG đã đóng BHXH</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="siPaidPeriod"
+													value={formData.siPaidPeriod}
+													onChange={handleFieldChange}
+													placeholder="TG đã đóng BHXH"
+												/>
+											) : (
+												<div className={styles.value}>{data.siPaidPeriod || '-'}</div>
+											)}
+										</div>
+
+										<div className={styles.field}>
+											<div className={styles.label}>TG đã đóng BHTN</div>
+											{isEditing ? (
+												<input
+													className={styles.input}
+													name="uiPaidPeriod"
+													value={formData.uiPaidPeriod}
+													onChange={handleFieldChange}
+													placeholder="TG đã đóng BHTN"
+												/>
+											) : (
+												<div className={styles.value}>{data.uiPaidPeriod || '-'}</div>
+											)}
+										</div>
+									</div>
+								</div>
 							</div>
 						)}
 					</section>

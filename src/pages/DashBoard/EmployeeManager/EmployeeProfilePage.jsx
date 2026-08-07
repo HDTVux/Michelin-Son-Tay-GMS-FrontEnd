@@ -148,11 +148,36 @@ export default function EmployeeProfilePage() {
 
     return {
       staffId: pickValue(profile?.staffId, staffId, '-'),
+      employeeCode: pickValue(profile?.employeeCode, profile?.employeeNo, profile?.staffId, '-'),
       fullName,
       phone: pickValue(profile?.phone, profile?.phoneNumber, '-'),
       role: getRoleText(profile),
+      position: pickValue(profile?.position, '-'),
+      department: pickValue(profile?.department, '-'),
+      educationLevel: pickValue(profile?.educationLevel, '-'),
+      profession: pickValue(profile?.profession, '-'),
+      startDate: formatDateVi(profile?.startDate),
+      isResigned: !!profile?.isResigned,
       gender: formatGenderLabel(profile?.gender),
       dob: formatDateVi(profile?.dob || profile?.dateOfBirth),
+      permanentAddress: pickValue(profile?.permanentAddress, '-'),
+      placeOfBirth: pickValue(profile?.placeOfBirth, '-'),
+      address: pickValue(profile?.address, '-'),
+      representative: pickValue(profile?.representative, '-'),
+      ethnicity: pickValue(profile?.ethnicity, '-'),
+      religion: pickValue(profile?.religion, '-'),
+      nationality: pickValue(profile?.nationality, '-'),
+      identityCard: pickValue(profile?.identityCard, '-'),
+      idIssuePlace: pickValue(profile?.idIssuePlace, '-'),
+      idIssueDate: formatDateVi(profile?.idIssueDate),
+      pitCode: pickValue(profile?.pitCode, '-'),
+      pitIssuePlace: pickValue(profile?.pitIssuePlace, '-'),
+      pitIssueDate: formatDateVi(profile?.pitIssueDate),
+      socialInsuranceCode: pickValue(profile?.socialInsuranceCode, '-'),
+      siIssuePlace: pickValue(profile?.siIssuePlace, '-'),
+      siIssueDate: formatDateVi(profile?.siIssueDate),
+      siPaidPeriod: pickValue(profile?.siPaidPeriod, '-'),
+      uiPaidPeriod: pickValue(profile?.uiPaidPeriod, '-'),
       avatar: pickValue(profile?.avatar, profile?.avatarUrl, ''),
       workDays: Number(performance?.totalWorkDays || 0),
       tickets: Number(performance?.totalTicketsHandled || 0),
@@ -182,12 +207,12 @@ export default function EmployeeProfilePage() {
           </div>
           <div>
             <h1 className={styles.title}>Chi tiết hồ sơ nhân viên</h1>
-            <p className={styles.subtitle}>Mã nhân viên: #{summary.staffId}</p>
+            <p className={styles.subtitle}>Mã nhân viên (employee_code): #{summary.employeeCode}</p>
           </div>
         </div>
 
         <div className={styles.heroActions}>
-          <button type="button" className={styles.ghostButton} onClick={() => navigate('/employee-manager')}>
+          <button type="button" className={styles.ghostButton} onClick={() => navigate(-1)}>
             Quay lại
           </button>
           <button type="button" className={styles.primaryButton} onClick={loadData}>
@@ -230,8 +255,9 @@ export default function EmployeeProfilePage() {
             </article>
           </section>
 
+          {/* 1. Thông tin cơ bản & Công việc */}
           <section className={styles.infoCard}>
-            <h2 className={styles.sectionTitle}>Thông tin cơ bản</h2>
+            <h2 className={styles.sectionTitle}>1. Thông tin cơ bản &amp; Chức danh</h2>
             <div className={styles.infoGrid}>
               <div className={styles.infoItem}>
                 <span>Họ tên</span>
@@ -249,11 +275,129 @@ export default function EmployeeProfilePage() {
                 <span>Ngày sinh</span>
                 <strong>{summary.dob}</strong>
               </div>
+              <div className={styles.infoItem}>
+                <span>Ngày vào làm</span>
+                <strong>{summary.startDate}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Trạng thái công việc</span>
+                <strong>{summary.isResigned ? 'Đã nghỉ việc' : 'Đang làm việc'}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Chức vụ</span>
+                <strong>{summary.position}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Bộ phận</span>
+                <strong>{summary.department}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Trình độ</span>
+                <strong>{summary.educationLevel}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Ngành nghề</span>
+                <strong>{summary.profession}</strong>
+              </div>
             </div>
           </section>
 
+          {/* 2. Địa chỉ & Nhân thân */}
+          <section className={styles.infoCard}>
+            <h2 className={styles.sectionTitle}>2. Địa chỉ &amp; Nhân thân</h2>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoItem}>
+                <span>HK thường trú</span>
+                <strong>{summary.permanentAddress}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Nơi sinh</span>
+                <strong>{summary.placeOfBirth}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Địa chỉ hiện tại</span>
+                <strong>{summary.address}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Người đại diện</span>
+                <strong>{summary.representative}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Dân tộc</span>
+                <strong>{summary.ethnicity}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Tôn giáo</span>
+                <strong>{summary.religion}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Quốc tịch</span>
+                <strong>{summary.nationality}</strong>
+              </div>
+            </div>
+          </section>
+
+          {/* 3. Giấy tờ CMND/CCCD & Thuế TNCN */}
+          <section className={styles.infoCard}>
+            <h2 className={styles.sectionTitle}>3. CMND / CCCD &amp; Thuế TNCN</h2>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoItem}>
+                <span>Số CMND / CCCD</span>
+                <strong>{summary.identityCard}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Nơi cấp CMND</span>
+                <strong>{summary.idIssuePlace}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Ngày cấp CMND</span>
+                <strong>{summary.idIssueDate}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Mã số thuế TNCN</span>
+                <strong>{summary.pitCode}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Nơi cấp Mã TNCN</span>
+                <strong>{summary.pitIssuePlace}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Ngày cấp Mã TNCN</span>
+                <strong>{summary.pitIssueDate}</strong>
+              </div>
+            </div>
+          </section>
+
+          {/* 4. Bảo hiểm xã hội & Thất nghiệp */}
+          <section className={styles.infoCard}>
+            <h2 className={styles.sectionTitle}>4. Bảo hiểm xã hội (BHXH) &amp; Thất nghiệp (BHTN)</h2>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoItem}>
+                <span>Số sổ BHXH</span>
+                <strong>{summary.socialInsuranceCode}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Nơi cấp BHXH</span>
+                <strong>{summary.siIssuePlace}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Ngày cấp BHXH</span>
+                <strong>{summary.siIssueDate}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>TG đã đóng BHXH</span>
+                <strong>{summary.siPaidPeriod}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>TG đã đóng BHTN</span>
+                <strong>{summary.uiPaidPeriod}</strong>
+              </div>
+            </div>
+          </section>
+
+          {/* 5. Lịch sử chấm công */}
           <section className={styles.tableCard}>
-            <h2 className={styles.sectionTitle}>Lịch sử chấm công 30 ngày gần nhất</h2>
+            <h2 className={styles.sectionTitle}>5. Lịch sử chấm công 30 ngày gần nhất</h2>
 
             {attendanceRows.length === 0 ? (
               <div className={styles.emptyState}>Chưa có bản ghi chấm công gần đây.</div>

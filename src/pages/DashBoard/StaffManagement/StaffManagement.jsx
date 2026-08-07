@@ -252,15 +252,42 @@ export default function StaffManagement() {
 
 			await createStaff(
 				{
-					fullName: payload?.username?.trim() || '',
+					fullName: payload?.fullName?.trim() || payload?.username?.trim() || '',
 					phone: payload?.phoneNumber?.trim() || '',
-					position: '',
+					position: payload?.position?.trim() || '',
 					password: payload?.password || '',
 					avatar: null,
 					email: payload?.email?.trim() || '',
 					status,
-					dob: null,
-					roles
+					dob: payload?.dob || null,
+					roles,
+
+					// Detailed employee attributes
+					employeeCode: payload?.employeeCode?.trim() || undefined,
+					startDate: payload?.startDate || null,
+					isResigned: !!payload?.isResigned,
+					permanentAddress: payload?.permanentAddress?.trim() || null,
+					placeOfBirth: payload?.placeOfBirth?.trim() || null,
+					address: payload?.address?.trim() || null,
+					representative: payload?.representative?.trim() || null,
+					gender: payload?.gender || null,
+					ethnicity: payload?.ethnicity?.trim() || null,
+					religion: payload?.religion?.trim() || null,
+					nationality: payload?.nationality?.trim() || null,
+					identityCard: payload?.identityCard?.trim() || null,
+					idIssuePlace: payload?.idIssuePlace?.trim() || null,
+					idIssueDate: payload?.idIssueDate || null,
+					pitCode: payload?.pitCode?.trim() || null,
+					pitIssuePlace: payload?.pitIssuePlace?.trim() || null,
+					pitIssueDate: payload?.pitIssueDate || null,
+					socialInsuranceCode: payload?.socialInsuranceCode?.trim() || null,
+					siIssuePlace: payload?.siIssuePlace?.trim() || null,
+					siIssueDate: payload?.siIssueDate || null,
+					siPaidPeriod: payload?.siPaidPeriod?.trim() || null,
+					uiPaidPeriod: payload?.uiPaidPeriod?.trim() || null,
+					educationLevel: payload?.educationLevel?.trim() || null,
+					profession: payload?.profession?.trim() || null,
+					department: payload?.department?.trim() || null
 				},
 				token
 			);

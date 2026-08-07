@@ -70,12 +70,36 @@ const StaffProfile = () => {
         if (data && typeof data === 'object' && (data.staffId || data.id || data.fullName)) {
           setStaffInfo((prev) => ({
             staffId: data.staffId ?? data.id ?? prev.staffId,
+            employeeCode: data.employeeCode ?? data.employeeNo ?? prev.employeeCode ?? '',
             avatar: data.avatarUrl ?? data.avatar ?? prev.avatar,
             fullName: data.fullName ?? data.name ?? prev.fullName,
             gender: data.gender ?? prev.gender,
             dob: data.dob ?? data.dateOfBirth ?? prev.dob,
             phone: data.phone ?? data.phoneNumber ?? prev.phone,
             position: ROLE_LABELS[data.position] ?? ROLE_LABELS[data.role] ?? data.position ?? data.role ?? data.chucDanh ?? prev.position,
+            startDate: data.startDate ?? '',
+            isResigned: !!data.isResigned,
+            permanentAddress: data.permanentAddress ?? '',
+            placeOfBirth: data.placeOfBirth ?? '',
+            address: data.address ?? '',
+            representative: data.representative ?? '',
+            ethnicity: data.ethnicity ?? '',
+            religion: data.religion ?? '',
+            nationality: data.nationality ?? '',
+            identityCard: data.identityCard ?? '',
+            idIssuePlace: data.idIssuePlace ?? '',
+            idIssueDate: data.idIssueDate ?? '',
+            pitCode: data.pitCode ?? '',
+            pitIssuePlace: data.pitIssuePlace ?? '',
+            pitIssueDate: data.pitIssueDate ?? '',
+            socialInsuranceCode: data.socialInsuranceCode ?? '',
+            siIssuePlace: data.siIssuePlace ?? '',
+            siIssueDate: data.siIssueDate ?? '',
+            siPaidPeriod: data.siPaidPeriod ?? '',
+            uiPaidPeriod: data.uiPaidPeriod ?? '',
+            educationLevel: data.educationLevel ?? '',
+            profession: data.profession ?? '',
+            department: data.department ?? ''
           }));
         }
       } catch (error) {
@@ -416,6 +440,10 @@ const StaffProfile = () => {
             </div>
             <div className={styles.infoGrid}>
               <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Mã nhân viên:</span>
+                <span className={styles.infoValue}>{staffInfo.employeeCode || staffInfo.staffId || '-'}</span>
+              </div>
+              <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>Giới tính:</span>
                 <span className={styles.infoValue}>{getGenderLabel(staffInfo.gender)}</span>
               </div>
@@ -424,12 +452,52 @@ const StaffProfile = () => {
                 <span className={styles.infoValue}>{formatDate(staffInfo.dob)}</span>
               </div>
               <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Ngày vào làm:</span>
+                <span className={styles.infoValue}>{formatDate(staffInfo.startDate)}</span>
+              </div>
+              <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>Số điện thoại:</span>
-                <span className={styles.infoValue}>{staffInfo.phone}</span>
+                <span className={styles.infoValue}>{staffInfo.phone || '-'}</span>
               </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>Chức danh / Vai trò:</span>
-                <span className={styles.infoValue}>{staffInfo.position}</span>
+                <span className={styles.infoValue}>{staffInfo.position || '-'}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Bộ phận:</span>
+                <span className={styles.infoValue}>{staffInfo.department || '-'}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Trình độ:</span>
+                <span className={styles.infoValue}>{staffInfo.educationLevel || '-'}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Ngành nghề:</span>
+                <span className={styles.infoValue}>{staffInfo.profession || '-'}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>HK thường trú:</span>
+                <span className={styles.infoValue}>{staffInfo.permanentAddress || '-'}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Nơi sinh:</span>
+                <span className={styles.infoValue}>{staffInfo.placeOfBirth || '-'}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Địa chỉ hiện tại:</span>
+                <span className={styles.infoValue}>{staffInfo.address || '-'}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Số CMND / CCCD:</span>
+                <span className={styles.infoValue}>{staffInfo.identityCard || '-'}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Mã số thuế TNCN:</span>
+                <span className={styles.infoValue}>{staffInfo.pitCode || '-'}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Số sổ BHXH:</span>
+                <span className={styles.infoValue}>{staffInfo.socialInsuranceCode || '-'}</span>
               </div>
             </div>
           </div>

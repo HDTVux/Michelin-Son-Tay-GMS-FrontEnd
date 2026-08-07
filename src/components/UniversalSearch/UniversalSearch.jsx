@@ -20,7 +20,7 @@ const normalizeRoleName = (value) => {
 const SEARCHABLE_FUNCTIONS = [
   { id: 'dashboard', label: 'Dashboard', path: '/dashboard', roles: 'ALL' },
   { id: 'system-tutorials', label: 'Hướng dẫn sử dụng', path: '/system-tutorials', roles: 'ALL' },
-  { id: 'customer-manager', label: 'Danh bạ khách hàng', path: '/customer-manager', roles: ['RECEPTIONIST', 'ADMIN'] },
+  { id: 'customer-manager', label: 'Danh bạ đối tác', path: '/customer-manager', roles: ['RECEPTIONIST', 'ADMIN'] },
   { id: 'create-booking', label: 'Tạo lịch giữ chỗ', path: '/create-booking', roles: ['RECEPTIONIST'] },
   { id: 'parts-sales', label: 'Bán hàng', path: '/parts-sales', roles: ['RECEPTIONIST'] },
   { id: 'booking-management', label: 'Quản lý lịch hẹn', path: '/booking-management', roles: ['RECEPTIONIST'] },

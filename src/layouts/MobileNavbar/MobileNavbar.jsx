@@ -111,7 +111,7 @@ const getDynamicNavItems = (roles, isMobile = false) => {
       },
       {
         id: 'customer-manager',
-        label: isMobile ? 'Danh bạ' : 'Danh bạ khách hàng',
+        label: isMobile ? 'Danh bạ' : 'Danh bạ đối tác',
         path: '/customer-manager',
         icon: isMobile ? <Contact size={20} /> : <Contact size={18} />,
       },

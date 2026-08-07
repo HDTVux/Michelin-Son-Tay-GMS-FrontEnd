@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import { updateCustomer } from '../../../services/adminService.js';
+import PartnerFormFields from './PartnerFormFields.jsx';
+import {
+  buildAutoCustomerCode,
+  buildPartnerPayload,
+  emptyPartnerFields,
+  partnerFieldsFromCustomer,
+} from './partnerForm.js';
 import styles from './CustomerManager.module.css';
 
 const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
@@ -12,7 +19,8 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
     gender: '',
     dob: '',
     customerType: 'INDIVIDUAL',
-    isDealer: false
+    isDealer: false,
+    ...emptyPartnerFields()
   });
 
   const [errors, setErrors] = useState({});
@@ -24,6 +32,7 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
     setSubmitting(false);
     setErrors({});
     setFormData({
+      ...partnerFieldsFromCustomer(customer),
       fullName: customer.fullName || '',
       email: customer.email || '',
       phone: customer.phone || '',
@@ -66,7 +75,11 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
   const validateForm = () => {
     const nextErrors = {};
     if (!formData.fullName.trim()) {
-      nextErrors.fullName = 'Họ tên không được để trống';
+      nextErrors.fullName = 'Tên khách hàng không được để trống';
+    }
+
+    if (!formData.autoCustomerCode && !(formData.customerCode || '').trim()) {
+      nextErrors.customerCode = 'Mã khách hàng không được để trống';
     }
 
     const emailError = validateEmailValue(formData.email);
@@ -96,6 +109,7 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
       }
 
       const payload = {
+        ...buildPartnerPayload(formData),
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
@@ -127,113 +141,22 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
     <div className={styles.modalOverlay}>
       <button type="button" className={styles.modalBackdrop} onClick={onClose} aria-label="Đóng pop-up" />
 
-      <dialog open className={styles.modalContent} aria-label="Chỉnh sửa hồ sơ khách hàng">
+      <dialog open className={`${styles.modalContent} ${styles.modalContentWide}`} aria-label="Chỉnh sửa hồ sơ đối tác">
         <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>Chỉnh sửa hồ sơ khách hàng</h2>
+          <h2 className={styles.modalTitle}>Chỉnh sửa hồ sơ đối tác</h2>
           <button className={styles.modalClose} onClick={onClose} aria-label="Đóng" type="button">
             X
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.modalBody}>
-          <div className={styles.formGrid}>
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="edit_fullName">
-                Họ tên <span className={styles.required}>*</span>
-              </label>
-              <input
-                id="edit_fullName"
-                type="text"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleInputChange}
-                className={`${styles.input} ${errors.fullName ? styles.inputError : ''}`}
-                placeholder="Nhập họ tên"
-              />
-              {errors.fullName && <span className={styles.errorText}>{errors.fullName}</span>}
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="edit_email">
-                Email
-              </label>
-              <input
-                id="edit_email"
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
-                placeholder="email@example.com"
-              />
-              {errors.email && <span className={styles.errorText}>{errors.email}</span>}
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="edit_phone">
-                SĐT <span className={styles.required}>*</span>
-              </label>
-              <input
-                id="edit_phone"
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className={`${styles.input} ${errors.phone ? styles.inputError : ''}`}
-                placeholder="0912345678"
-              />
-              {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="edit_gender">
-                Giới tính
-              </label>
-              <select
-                id="edit_gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleInputChange}
-                className={styles.select}
-              >
-                <option value="">Chọn giới tính</option>
-                <option value="MALE">Nam</option>
-                <option value="FEMALE">Nữ</option>
-                <option value="OTHER">Khác</option>
-              </select>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="edit_customerType">
-                Loại khách hàng
-              </label>
-              <select
-                id="edit_customerType"
-                name="customerType"
-                value={formData.customerType}
-                onChange={handleInputChange}
-                className={styles.select}
-              >
-                <option value="INDIVIDUAL">Khách lẻ</option>
-                <option value="DEALER">Đại lý</option>
-                <option value="GARAGE">Garage khác</option>
-              </select>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="edit_dob">
-                Ngày sinh
-              </label>
-              <input
-                id="edit_dob"
-                type="date"
-                name="dob"
-                value={formData.dob}
-                onChange={handleInputChange}
-                className={styles.input}
-              />
-            </div>
-
+          <PartnerFormFields
+            formData={formData}
+            setFormData={setFormData}
+            errors={errors}
+            idPrefix="edit"
+            autoCodeValue={buildAutoCustomerCode(customer?.customerId || customer?.id)}
+          >
             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
               <label className={styles.pinDefaultToggle} style={{ marginTop: '15px' }}>
                 <input
@@ -246,7 +169,7 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
                 <span>Cấp quyền Đại lý (Cho phép chuyển đổi giao diện Khách lẻ / Đại lý)</span>
               </label>
             </div>
-          </div>
+          </PartnerFormFields>
 
           <div className={styles.modalFooter}>
             <button type="button" className={styles.cancelButton} onClick={onClose} disabled={submitting}>

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import { createCustomer } from '../../../services/adminService.js';
+import PartnerFormFields from './PartnerFormFields.jsx';
+import { buildPartnerPayload, emptyPartnerFields, partnerFieldsFromCustomer } from './partnerForm.js';
 import styles from './CustomerManager.module.css';
 
 const PIN_LENGTH = 6;
@@ -15,7 +17,8 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
     gender: '',
     dob: '',
     avatar: '',
-    customerType: 'INDIVIDUAL'
+    customerType: 'INDIVIDUAL',
+    ...emptyPartnerFields()
   });
 
   const [useDefaultPin, setUseDefaultPin] = useState(true);
@@ -34,6 +37,7 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
     setErrors({});
     if (initialData) {
       setFormData({
+        ...partnerFieldsFromCustomer(initialData),
         fullName: initialData.fullName || '',
         email: initialData.email || '',
         phone: initialData.phone || '',
@@ -45,6 +49,7 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
       });
     } else {
       setFormData({
+        ...emptyPartnerFields(),
         fullName: '',
         email: '',
         phone: '',
@@ -164,7 +169,11 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
     const newErrors = {};
 
     if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Vui lòng nhập họ tên';
+      newErrors.fullName = 'Vui lòng nhập tên khách hàng';
+    }
+
+    if (!formData.autoCustomerCode && !(formData.customerCode || '').trim()) {
+      newErrors.customerCode = 'Vui lòng nhập mã khách hàng hoặc bật tự động sinh mã';
     }
 
     const emailError = validateEmailValue(formData.email);
@@ -218,6 +227,7 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
       }
 
       const payload = {
+        ...buildPartnerPayload(formData),
         fullName: formData.fullName,
         phone: formData.phone,
         email: formData.email,
@@ -250,82 +260,21 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
     <div className={styles.modalOverlay}>
       <button type="button" className={styles.modalBackdrop} onClick={close} aria-label="Đóng pop-up" />
 
-      <dialog open className={styles.modalContent} aria-label="Thêm khách hàng mới">
+      <dialog open className={`${styles.modalContent} ${styles.modalContentWide}`} aria-label="Thêm đối tác mới">
         <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>Thêm khách hàng mới</h2>
+          <h2 className={styles.modalTitle}>Thêm đối tác / khách hàng mới</h2>
           <button className={styles.modalClose} onClick={close} aria-label="Đóng" type="button">
             X
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.modalBody}>
-          <div className={styles.formGrid}>
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="cm_fullName">
-                Họ tên <span className={styles.required}>*</span>
-              </label>
-              <input
-                id="cm_fullName"
-                type="text"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleInputChange}
-                className={`${styles.input} ${errors.fullName ? styles.inputError : ''}`}
-                placeholder="Nhập họ tên"
-              />
-              {errors.fullName && <span className={styles.errorText}>{errors.fullName}</span>}
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="cm_email">
-                Email
-              </label>
-              <input
-                id="cm_email"
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
-                placeholder="email@example.com"
-              />
-              {errors.email && <span className={styles.errorText}>{errors.email}</span>}
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="cm_phone">
-                SĐT <span className={styles.required}>*</span>
-              </label>
-              <input
-                id="cm_phone"
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className={`${styles.input} ${errors.phone ? styles.inputError : ''}`}
-                placeholder="0912345678"
-              />
-              {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="cm_gender">
-                Giới tính
-              </label>
-              <select
-                id="cm_gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleInputChange}
-                className={styles.select}
-              >
-                <option value="">Chọn giới tính</option>
-                <option value="MALE">Nam</option>
-                <option value="FEMALE">Nữ</option>
-                <option value="OTHER">Khác</option>
-              </select>
-            </div>
-
+          <PartnerFormFields
+            formData={formData}
+            setFormData={setFormData}
+            errors={errors}
+            idPrefix="cm"
+          >
             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
               <label className={styles.label} htmlFor="cm_pin_0">
                 Mã PIN <span className={styles.required}>*</span>
@@ -390,33 +339,6 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
               {errors.pin && <span className={styles.errorText}>{errors.pin}</span>}
             </div>
 
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="cm_customerType">Loại khách hàng</label>
-              <select
-                id="cm_customerType"
-                name="customerType"
-                value={formData.customerType}
-                onChange={handleInputChange}
-                className={styles.select}
-              >
-                <option value="INDIVIDUAL">Khách lẻ</option>
-                <option value="DEALER">Đại lý</option>
-                <option value="GARAGE">Garage khác</option>
-              </select>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="cm_dob">Ngày sinh</label>
-              <input
-                id="cm_dob"
-                type="date"
-                name="dob"
-                value={formData.dob}
-                onChange={handleInputChange}
-                className={styles.input}
-              />
-            </div>
-
             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
               <label className={styles.pinDefaultToggle} style={{ marginTop: '15px' }}>
                 <input
@@ -429,9 +351,7 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
                 <span>Cấp quyền Đại lý (Cho phép chuyển đổi giao diện Khách lẻ / Đại lý)</span>
               </label>
             </div>
-
-
-          </div>
+          </PartnerFormFields>
 
           <div className={styles.modalFooter}>
             <button type="button" className={styles.cancelButton} onClick={close} disabled={submitting}>

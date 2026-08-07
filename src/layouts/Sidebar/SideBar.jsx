@@ -157,7 +157,7 @@ const NAV_GROUPS = [
                 label: 'Khách hàng & Lịch hẹn',
                 icon: <User size={15} />,
                 items: [
-                    { id: 'customer-manager', label: 'Danh bạ khách hàng', path: '/customer-manager', icon: <User size={18} />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ADMIN] },
+                    { id: 'customer-manager', label: 'Danh bạ đối tác', path: '/customer-manager', icon: <User size={18} />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ADMIN] },
                     { id: 'create-booking', label: 'Tạo lịch giữ chỗ', path: '/create-booking', icon: <CalendarPlus size={18} />, roles: [STAFF_ROLE.RECEPTIONIST] },
                     { id: 'booking-management', label: 'Quản lý lịch hẹn', path: '/booking-management', icon: <Calendar size={18} />, roles: [STAFF_ROLE.RECEPTIONIST] },
                     { id: 'booking-request-management', label: 'Yêu cầu đặt lịch', path: '/booking-request-management', icon: <Clock size={18} />, roles: [STAFF_ROLE.RECEPTIONIST] },

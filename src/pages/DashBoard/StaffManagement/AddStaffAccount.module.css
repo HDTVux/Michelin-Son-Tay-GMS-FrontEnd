@@ -112,6 +112,30 @@
   }
 }
 
+.fieldCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+}
+
+.checkboxLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ui-text);
+}
+
+.checkboxInput {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--ui-primary);
+  cursor: pointer;
+}
+
 .roleList {
   display: grid;
   grid-template-columns: 1fr 1fr;

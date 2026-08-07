@@ -1096,3 +1096,126 @@
   gap: 16px;
   margin-bottom: 36px;
 }
+
+/* ─── Danh bạ đối tác: form nhiều tab ─────────────────────────────────────── */
+
+.modalContentWide {
+  max-width: 860px;
+}
+
+.partnerForm {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.tabBar {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-x: auto;
+}
+
+.tabButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.tabButton:hover {
+  color: #2563eb;
+}
+
+.tabButtonActive {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+.inputWithButton {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.inputWithButton .input,
+.inputWithButton .select {
+  flex: 1;
+  min-width: 0;
+}
+
+.lookupButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.lookupButton:hover:not(:disabled) {
+  background: #e0e7ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.lookupButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fieldHint {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* Khối thông tin đối tác trong panel chi tiết */
+.detailNote {
+  font-size: 13px;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #94a3b8;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 24px;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 900px) {
+  .modalContentWide {
+    max-width: 100%;
+  }
+}
+
+.inlineCheckbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+  cursor: pointer;
+  user-select: none;
+}
+
+.input:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}

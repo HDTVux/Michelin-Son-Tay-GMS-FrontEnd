@@ -9,6 +9,30 @@ import { Phone, Mail, Search, User, Plus, RefreshCw, Lock, Trash2, Eye, Car, Edi
 import CreateCustomerModal from './CreateCustomerModal.jsx';
 import EditCustomerModal from './EditCustomerModal.jsx';
 import RankBadge from '../../../components/RankBadge/RankBadge.jsx';
+import { formatPartnerAddress } from './partnerForm.js';
+
+const hasAnyValue = (customer, fields) => fields.some((field) => {
+  const value = customer?.[field];
+  return value !== null && value !== undefined && String(value).trim() !== '';
+});
+
+const LEGAL_FIELDS = [
+  'representativeName',
+  'repIdentityCard',
+  'position',
+  'contractNumber',
+  'contractDate',
+  'bankAccountInfo',
+  'latitude',
+  'longitude',
+];
+
+const CONTACT_FIELDS = ['contactName', 'contactPhone', 'contactEmail', 'contactAddress'];
+
+const displayValue = (value, fallback = 'Chưa cập nhật') => {
+  if (value === null || value === undefined || String(value).trim() === '') return fallback;
+  return String(value);
+};
 
 const normalizeCustomerStatus = (value) => {
   if (value == null || String(value).trim() === '') return null;
@@ -280,6 +304,7 @@ const CustomerManager = () => {
   const handleCreateAccountForGuest = () => {
     if (!selectedCustomer) return;
     setModalInitialData({
+      ...selectedCustomer,
       fullName: selectedCustomer.fullName || '',
       email: selectedCustomer.email || '',
       phone: selectedCustomer.phone || '',
@@ -292,13 +317,13 @@ const CustomerManager = () => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Danh bạ khách hàng</h1>
+        <h1 className={styles.title}>Danh bạ đối tác</h1>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className={styles.excelButton} onClick={() => navigate('/customer-excel-import')} title="Nhập khách hàng từ Excel">
+          <button className={styles.excelButton} onClick={() => navigate('/customer-excel-import')} title="Nhập đối tác từ Excel">
             <Upload size={16} /> <span className={styles.addButtonText}>Nhập Excel</span>
           </button>
-          <button className={styles.addButton} onClick={openCreateModal} title="Thêm khách hàng mới">
-            <Plus size={16} /> <span className={styles.addButtonText}>Thêm khách hàng mới</span>
+          <button className={styles.addButton} onClick={openCreateModal} title="Thêm đối tác mới">
+            <Plus size={16} /> <span className={styles.addButtonText}>Thêm đối tác mới</span>
           </button>
         </div>
       </div>
@@ -311,7 +336,7 @@ const CustomerManager = () => {
               <Search className={styles.searchIcon} size={16} />
               <input
                 type="text"
-                placeholder="Tìm tên, SĐT, biển số xe..."
+                placeholder="Tìm tên, mã KH, MST, SĐT, biển số xe..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -470,8 +495,16 @@ const CustomerManager = () => {
               </div>
 
               {/* Info Grid */}
-              <div className={styles.detailSectionTitle}>Thông tin liên hệ</div>
+              <div className={styles.detailSectionTitle}>Thông tin chung</div>
               <div className={styles.detailGrid}>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Mã khách hàng</span>
+                  <span className={styles.detailValue}>{displayValue(selectedCustomer.customerCode)}</span>
+                </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Mã số thuế</span>
+                  <span className={styles.detailValue}>{displayValue(selectedCustomer.taxCode)}</span>
+                </div>
                 <div className={styles.detailField}>
                   <span className={styles.detailLabel}>Số điện thoại</span>
                   <span className={styles.detailValue}>{selectedCustomer.phone}</span>
@@ -479,6 +512,24 @@ const CustomerManager = () => {
                 <div className={styles.detailField}>
                   <span className={styles.detailLabel}>Email</span>
                   <span className={styles.detailValue}>{selectedCustomer.email || 'Chưa cung cấp'}</span>
+                </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Địa chỉ</span>
+                  <span className={styles.detailValue}>
+                    {displayValue(formatPartnerAddress(selectedCustomer))}
+                  </span>
+                </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Số CMND / CCCD</span>
+                  <span className={styles.detailValue}>{displayValue(selectedCustomer.identityCard)}</span>
+                </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Ngày cấp</span>
+                  <span className={styles.detailValue}>{displayValue(selectedCustomer.idIssueDate)}</span>
+                </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Nơi cấp</span>
+                  <span className={styles.detailValue}>{displayValue(selectedCustomer.idIssuePlace)}</span>
                 </div>
                 <div className={styles.detailField}>
                   <span className={styles.detailLabel}>Giới tính</span>
@@ -497,14 +548,94 @@ const CustomerManager = () => {
                   <span className={styles.detailValue}>{selectedCustomer.dob || 'Chưa cập nhật'}</span>
                 </div>
                 <div className={styles.detailField}>
-                  <span className={styles.detailLabel}>Số lần đặt lịch</span>
-                  <span className={styles.detailValue}>{selectedCustomer.totalBookings || 0} lần</span>
-                </div>
-                <div className={styles.detailField}>
                   <span className={styles.detailLabel}>Loại khách hàng</span>
                   <span className={styles.detailValue}>{getCustomerTypeText(selectedCustomer.customerType)}</span>
                 </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Nhóm khách hàng</span>
+                  <span className={styles.detailValue}>
+                    {displayValue(selectedCustomer.customerGroupName, 'Chưa phân nhóm')}
+                  </span>
+                </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Số lần đặt lịch</span>
+                  <span className={styles.detailValue}>{selectedCustomer.totalBookings || 0} lần</span>
+                </div>
               </div>
+
+              {selectedCustomer.note && <div className={styles.detailNote}>{selectedCustomer.note}</div>}
+
+              {hasAnyValue(selectedCustomer, LEGAL_FIELDS) && (
+                <>
+                  <div className={styles.detailSectionTitle}>Pháp nhân</div>
+                  <div className={styles.detailGrid}>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Người đại diện</span>
+                      <span className={styles.detailValue}>{displayValue(selectedCustomer.representativeName)}</span>
+                    </div>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Số CMND người đại diện</span>
+                      <span className={styles.detailValue}>{displayValue(selectedCustomer.repIdentityCard)}</span>
+                    </div>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Chức vụ</span>
+                      <span className={styles.detailValue}>{displayValue(selectedCustomer.position)}</span>
+                    </div>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Số hợp đồng</span>
+                      <span className={styles.detailValue}>{displayValue(selectedCustomer.contractNumber)}</span>
+                    </div>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Ngày ký hợp đồng</span>
+                      <span className={styles.detailValue}>{displayValue(selectedCustomer.contractDate)}</span>
+                    </div>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Ngân hàng</span>
+                      <span className={styles.detailValue}>{displayValue(selectedCustomer.bankAccountInfo)}</span>
+                    </div>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Toạ độ</span>
+                      <span className={styles.detailValue}>
+                        {selectedCustomer.latitude && selectedCustomer.longitude ? (
+                          <a
+                            href={`https://www.google.com/maps?q=${selectedCustomer.latitude},${selectedCustomer.longitude}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {selectedCustomer.latitude}, {selectedCustomer.longitude}
+                          </a>
+                        ) : (
+                          'Chưa cập nhật'
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {hasAnyValue(selectedCustomer, CONTACT_FIELDS) && (
+                <>
+                  <div className={styles.detailSectionTitle}>Liên hệ khác</div>
+                  <div className={styles.detailGrid}>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Người liên hệ</span>
+                      <span className={styles.detailValue}>{displayValue(selectedCustomer.contactName)}</span>
+                    </div>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Điện thoại liên hệ</span>
+                      <span className={styles.detailValue}>{displayValue(selectedCustomer.contactPhone)}</span>
+                    </div>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Email liên hệ</span>
+                      <span className={styles.detailValue}>{displayValue(selectedCustomer.contactEmail)}</span>
+                    </div>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Địa chỉ liên hệ</span>
+                      <span className={styles.detailValue}>{displayValue(selectedCustomer.contactAddress)}</span>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Ranking Section */}
               {(selectedCustomer.currentRank || selectedCustomer.totalPoints >= 0) && (
