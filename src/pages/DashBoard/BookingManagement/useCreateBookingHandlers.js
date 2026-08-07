@@ -403,9 +403,13 @@ export function useCreateBookingHandlers({
 		const code = String(createdBookingForCheckIn?.bookingCode ?? '').trim();
 		const bookingDate = String(createdBookingForCheckIn?.booking?.scheduledDate || schedule?.date || '').slice(0, 10);
 		const today = formatLocalDateYYYYMMDD(new Date());
-		if (bookingDate !== today) {
-			toast('Chỉ có thể chuyển sang Check-in với lịch hẹn trong ngày hôm nay.', { containerId: 'app-toast' });
-			return;
+		// Lịch hẹn khác ngày hôm nay vẫn check-in được (khách đến sớm), chỉ hỏi
+		// lại để tránh bấm nhầm.
+		if (bookingDate && bookingDate !== today) {
+			const confirmed = globalThis.confirm(
+				`Lịch hẹn này vào ngày ${bookingDate}, không phải hôm nay.\nVẫn chuyển sang Check-in?`,
+			);
+			if (!confirmed) return;
 		}
 		if (code) {
 			navigate('/check-in', { state: { bookingCode: code, booking: createdBookingForCheckIn?.booking || null } });

@@ -953,8 +953,11 @@ export default function CreateBooking() {
 									type="button"
 									className={`${bookingStyles.btn} ${bookingStyles.primary} ${styles.successBtn}`}
 									onClick={handleGoToCheckIn}
-									disabled={!canGoToCheckIn}
-									title={canGoToCheckIn ? 'Chuyển sang Check-in' : 'Chỉ có thể check-in lịch hẹn trong ngày hôm nay'}
+									title={
+										canGoToCheckIn
+											? 'Chuyển sang Check-in'
+											: 'Lịch hẹn không phải hôm nay — sẽ hỏi xác nhận trước khi chuyển'
+									}
 								>
 									Chuyển sang Check-in
 								</button>
