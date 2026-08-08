@@ -275,6 +275,12 @@
   color: #c026d3;
 }
 
+.customerTypeTagCompany {
+  background: #0284c7;
+  color: #ffffff;
+  font-weight: 600;
+}
+
 .contactPhone {
   font-size: 12px;
   color: #64748b;

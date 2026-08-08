@@ -1,5 +1,16 @@
 // Lấy URL cơ sở từ biến môi trường (Environment Variable)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const getApiBaseUrl = () => {
+  if (
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === 'staff.localhost' ||
+      window.location.hostname === '127.0.0.1')
+  ) {
+    return 'http://localhost:8080';
+  }
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+};
+const API_BASE_URL = getApiBaseUrl();
 const AUTH_REDIRECT_ERROR_KEY = 'authRedirectError';
 const LOGIN_PATH = '/login';
 
@@ -41,7 +52,11 @@ async function request(path, options = {}) {
   let response;
 
   // Lấy token từ localStorage và tự động đính kèm nếu có
-  const authToken = localStorage.getItem('authToken');
+  const authToken =
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('staffToken') ||
+    localStorage.getItem('adminToken') ||
+    localStorage.getItem('customerToken');
   const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
   try {

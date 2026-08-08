@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
-import { updateCustomer } from '../../../services/adminService.js';
+import { fetchCustomerDetail, updateCustomer } from '../../../services/adminService.js';
 import PartnerFormFields from './PartnerFormFields.jsx';
 import { fetchCustomerVehicles } from '../../../services/vehicleService.js';
 import {
@@ -34,7 +34,7 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
 
     setSubmitting(false);
     setErrors({});
-    setFormData({
+    const initialForm = {
       ...partnerFieldsFromCustomer(customer),
       fullName: customer.fullName || '',
       email: customer.email || '',
@@ -42,8 +42,19 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
       gender: customer.gender || '',
       dob: customer.dob || '',
       customerType: customer.customerType || 'INDIVIDUAL',
-      isDealer: customer.isDealer || false
-    });
+      isDealer: Boolean(
+        customer.isDealer === true || customer.isDealer === 1 || customer.isDealer === 'true' || customer.isDealer === '1' ||
+        customer.is_dealer === true || customer.is_dealer === 1 || customer.is_dealer === 'true' || customer.is_dealer === '1'
+      ),
+      isCompany: Boolean(
+        customer.isCompany === true || customer.isCompany === 1 || customer.isCompany === 'true' || customer.isCompany === '1' ||
+        customer.is_company === true || customer.is_company === 1 || customer.is_company === 'true' || customer.is_company === '1' ||
+        (customer.companyName && String(customer.companyName).trim() !== '') ||
+        (customer.company_name && String(customer.company_name).trim() !== '')
+      ),
+      companyName: customer.companyName || customer.company_name || ''
+    };
+    setFormData(initialForm);
 
     const customerId = customer.customerId || customer.id;
     if (!customerId) {
@@ -52,6 +63,42 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
     }
 
     let cancelled = false;
+
+    const token =
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('adminToken') ||
+      localStorage.getItem('staffToken');
+
+    if (token) {
+      fetchCustomerDetail(customerId, token)
+        .then((res) => {
+          if (cancelled || !res?.success || !res?.data) return;
+          const fresh = res.data;
+          setFormData((prev) => ({
+            ...prev,
+            ...partnerFieldsFromCustomer(fresh),
+            fullName: fresh.fullName || prev.fullName,
+            email: fresh.email || prev.email,
+            phone: fresh.phone || prev.phone,
+            gender: fresh.gender || prev.gender,
+            dob: fresh.dob || prev.dob,
+            customerType: fresh.customerType || prev.customerType,
+            isDealer: Boolean(
+              fresh.isDealer === true || fresh.isDealer === 1 || fresh.isDealer === 'true' || fresh.isDealer === '1' ||
+              fresh.is_dealer === true || fresh.is_dealer === 1 || fresh.is_dealer === 'true' || fresh.is_dealer === '1'
+            ),
+            isCompany: Boolean(
+              fresh.isCompany === true || fresh.isCompany === 1 || fresh.isCompany === 'true' || fresh.isCompany === '1' ||
+              fresh.is_company === true || fresh.is_company === 1 || fresh.is_company === 'true' || fresh.is_company === '1' ||
+              (fresh.companyName && String(fresh.companyName).trim() !== '') ||
+              (fresh.company_name && String(fresh.company_name).trim() !== '')
+            ),
+            companyName: fresh.companyName || fresh.company_name || prev.companyName || ''
+          }));
+        })
+        .catch((err) => console.error('Error fetching customer detail in modal:', err));
+    }
+
     fetchCustomerVehicles(customerId)
       .then((res) => {
         if (!cancelled) setExistingVehicles(res?.data?.vehicles || []);
@@ -138,7 +185,9 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
         gender: formData.gender,
         dob: formData.dob || null,
         customerType: formData.customerType,
-        isDealer: formData.isDealer
+        isDealer: formData.isDealer,
+        isCompany: formData.isCompany,
+        companyName: formData.isCompany ? (formData.companyName || '').trim() : ''
       };
 
       const customerId = customer.customerId || customer.id;

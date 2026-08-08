@@ -50,7 +50,9 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
         dob: initialData.dob || '',
         avatar: initialData.avatar || '',
         customerType: initialData.customerType || 'INDIVIDUAL',
-        isDealer: initialData.isDealer || false
+        isDealer: initialData.isDealer || false,
+        isCompany: initialData.isCompany || false,
+        companyName: initialData.companyName || ''
       });
     } else {
       setFormData({
@@ -62,7 +64,9 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
         dob: '',
         avatar: '',
         customerType: 'INDIVIDUAL',
-        isDealer: false
+        isDealer: false,
+        isCompany: false,
+        companyName: ''
       });
     }
     setUseDefaultPin(true);
@@ -241,7 +245,9 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
         dob: formData.dob,
         avatar: formData.avatar,
         customerType: formData.customerType || 'INDIVIDUAL',
-        isDealer: formData.isDealer || false
+        isDealer: formData.isDealer || false,
+        isCompany: formData.isCompany || false,
+        companyName: formData.isCompany ? (formData.companyName || '').trim() : ''
       };
 
       const response = await createCustomer(payload, token);
@@ -344,6 +350,36 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
               </div>
               {errors.pin && <span className={styles.errorText}>{errors.pin}</span>}
             </div>
+
+            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+              <label className={styles.pinDefaultToggle} style={{ marginTop: '15px' }}>
+                <input
+                  type="checkbox"
+                  name="isCompany"
+                  checked={formData.isCompany || false}
+                  onChange={(e) => handleInputChange({ target: { name: 'isCompany', value: e.target.checked } })}
+                  className={styles.checkbox}
+                />
+                <span>Khách hàng công ty (Chuyên xử lý xe của công ty)</span>
+              </label>
+            </div>
+
+            {formData.isCompany && (
+              <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                <label className={styles.label} htmlFor="companyName">
+                  Tên công ty
+                </label>
+                <input
+                  id="companyName"
+                  type="text"
+                  name="companyName"
+                  value={formData.companyName || ''}
+                  onChange={handleInputChange}
+                  className={styles.input}
+                  placeholder="Nhập tên công ty"
+                />
+              </div>
+            )}
 
             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
               <label className={styles.pinDefaultToggle} style={{ marginTop: '15px' }}>

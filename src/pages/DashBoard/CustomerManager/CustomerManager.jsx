@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { toast } from 'react-toastify';
-import { deleteCustomerAccount, fetchAllCustomers, lockCustomerAccount, updateCustomer } from '../../../services/adminService.js';
+import { deleteCustomerAccount, fetchAllCustomers, fetchCustomerDetail, lockCustomerAccount, updateCustomer } from '../../../services/adminService.js';
 import styles from './CustomerManager.module.css';
 import { Phone, Mail, Search, User, Plus, RefreshCw, Lock, Trash2, Eye, Car, Edit, Upload } from 'lucide-react';
 
@@ -11,6 +11,7 @@ import EditCustomerModal from './EditCustomerModal.jsx';
 import RankBadge from '../../../components/RankBadge/RankBadge.jsx';
 import { formatPartnerAddress } from './partnerForm.js';
 
+// Force Vite HMR reload
 const hasAnyValue = (customer, fields) => fields.some((field) => {
   const value = customer?.[field];
   return value !== null && value !== undefined && String(value).trim() !== '';
@@ -28,6 +29,15 @@ const LEGAL_FIELDS = [
 ];
 
 const CONTACT_FIELDS = ['contactName', 'contactPhone', 'contactEmail', 'contactAddress'];
+
+const isCompanyValue = (item) => {
+  if (!item) return false;
+  if (item.isCompany === true || item.isCompany === 1 || item.isCompany === 'true' || item.isCompany === '1') return true;
+  if (item.is_company === true || item.is_company === 1 || item.is_company === 'true' || item.is_company === '1') return true;
+  if (item.companyName && String(item.companyName).trim() !== '') return true;
+  if (item.company_name && String(item.company_name).trim() !== '') return true;
+  return false;
+};
 
 const displayValue = (value, fallback = 'Chưa cập nhật') => {
   if (value === null || value === undefined || String(value).trim() === '') return fallback;
@@ -106,16 +116,48 @@ const CustomerManager = () => {
 
   const requestSeqRef = useRef(0);
 
-  const handleUpdatedCustomer = (updatedData) => {
-    setSelectedCustomer(updatedData);
+  const handleUpdatedCustomer = async (updatedData) => {
+    // Cập nhật tạm từ payload trả về
+    const normalized = {
+      ...updatedData,
+      isCompany: isCompanyValue(updatedData),
+      companyName: updatedData.companyName || updatedData.company_name || ''
+    };
+    setSelectedCustomer(normalized);
     setCustomers((prev) =>
       prev.map((c) => {
         const id = c.customerId || c.id;
         const targetId = updatedData.customerId || updatedData.id;
-        if (id === targetId) return { ...c, ...updatedData };
+        if (id === targetId) return { ...c, ...normalized };
         return c;
       })
     );
+    // Fetch lại dữ liệu mới nhất từ server để đảm bảo đúng (bao gồm isCompany, companyName)
+    try {
+      const token = getAuthToken();
+      const id = updatedData.customerId || updatedData.id;
+      if (token && id) {
+        const res = await fetchCustomerDetail(id, token);
+        if (res?.success && res?.data) {
+          const detail = res.data;
+          const fresh = {
+            ...detail,
+            isCompany: isCompanyValue(detail),
+            companyName: detail.companyName || detail.company_name || ''
+          };
+          setSelectedCustomer(fresh);
+          setCustomers((prev) =>
+            prev.map((c) => {
+              const cid = c.customerId || c.id;
+              if (cid === id) return { ...c, ...fresh };
+              return c;
+            })
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Error re-fetching customer detail after update:', err);
+    }
   };
 
   // Load customers from API (all at once)
@@ -144,7 +186,12 @@ const CustomerManager = () => {
       
       if (response?.success && response?.data) {
         const { content } = response.data;
-        setCustomers(content || []);
+        const normalized = (content || []).map((item) => ({
+          ...item,
+          isCompany: isCompanyValue(item),
+          companyName: item.companyName || item.company_name || ''
+        }));
+        setCustomers(normalized);
       }
     } catch (error) {
       console.error('Error loading customers:', error);
@@ -165,33 +212,54 @@ const CustomerManager = () => {
   useEffect(() => {
     if (customers && customers.length > 0) {
       if (!selectedCustomer) {
-        // Default select first on desktop, but keep null on mobile for contact list view
+        // Default select first on desktop
         const isMobile = window.innerWidth <= 900;
         if (!isMobile) {
-          setSelectedCustomer(customers[0]);
-        }
-      } else {
-        const updated = customers.find(
-          (c) => (c.customerId || c.id) === (selectedCustomer.customerId || selectedCustomer.id)
-        );
-        if (updated) {
-          setSelectedCustomer(updated);
-        } else {
-          const isMobile = window.innerWidth <= 900;
-          if (!isMobile) {
-            setSelectedCustomer(customers[0]);
-          } else {
-            setSelectedCustomer(null);
-          }
+          handleSelectCustomer(customers[0]);
         }
       }
+      // Không overwrite selectedCustomer từ danh sách — vì dữ liệu detail (isCompany, companyName)
+      // đã được fetch riêng qua fetchCustomerDetail và sẽ đầy đủ hơn dữ liệu danh sách.
     } else {
       setSelectedCustomer(null);
     }
   }, [customers]);
 
+  const handleSelectCustomer = async (cust) => {
+    if (!cust) {
+      setSelectedCustomer(null);
+      return;
+    }
+    const safeCust = {
+      ...cust,
+      isCompany: isCompanyValue(cust),
+      companyName: cust.companyName || cust.company_name || ''
+    };
+    setSelectedCustomer(safeCust);
+    try {
+      const token = getAuthToken();
+      const id = cust.customerId || cust.id;
+      if (token && id) {
+        const res = await fetchCustomerDetail(id, token);
+        if (res?.success && res?.data) {
+          const detail = res.data;
+          setSelectedCustomer({
+            ...detail,
+            isCompany: isCompanyValue(detail),
+            companyName: detail.companyName || detail.company_name || ''
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching detail on select:', err);
+    }
+  };
+
   const handleCreatedCustomer = () => {
     loadCustomers();
+    if (selectedCustomer) {
+      handleSelectCustomer(selectedCustomer);
+    }
   };
 
   const getStatusBadgeClass = (status) => {
@@ -388,7 +456,7 @@ const CustomerManager = () => {
                     <div
                       key={customer.customerId || customer.id}
                       className={`${styles.contactItem} ${isSelected ? styles.contactItemActive : ''}`}
-                      onClick={() => setSelectedCustomer(customer)}
+                      onClick={() => handleSelectCustomer(customer)}
                     >
                       <div
                         className={styles.contactAvatar}
@@ -405,6 +473,11 @@ const CustomerManager = () => {
                           {customer.isDealer && (
                             <span className={`${styles.customerTypeTag} ${styles.customerTypeTagDealerAccount}`} title="Có quyền truy cập giao diện Đại lý">
                               TK Đại lý
+                            </span>
+                          )}
+                          {isCompanyValue(customer) && (
+                            <span className={`${styles.customerTypeTag} ${styles.customerTypeTagCompany}`} title="Khách hàng công ty">
+                              Công ty
                             </span>
                           )}
                         </span>
@@ -471,6 +544,11 @@ const CustomerManager = () => {
                     {selectedCustomer.isDealer && (
                       <span className={`${styles.customerTypeTag} ${styles.customerTypeTagDealerAccount}`} title="Có quyền truy cập giao diện Đại lý">
                         TK Đại lý
+                      </span>
+                    )}
+                    {isCompanyValue(selectedCustomer) && (
+                      <span className={`${styles.customerTypeTag} ${styles.customerTypeTagCompany}`} title="Khách hàng công ty">
+                        Công ty
                       </span>
                     )}
                     <RankBadge rank={selectedCustomer.currentRank || 'BRONZE'} size="sm" />
@@ -551,6 +629,12 @@ const CustomerManager = () => {
                   <span className={styles.detailLabel}>Loại khách hàng</span>
                   <span className={styles.detailValue}>{getCustomerTypeText(selectedCustomer.customerType)}</span>
                 </div>
+                {isCompanyValue(selectedCustomer) && (
+                  <div className={styles.detailField}>
+                    <span className={styles.detailLabel}>Tên công ty</span>
+                    <span className={styles.detailValue}>{displayValue(selectedCustomer.companyName || selectedCustomer.company_name, 'Chưa cập nhật')}</span>
+                  </div>
+                )}
                 <div className={styles.detailField}>
                   <span className={styles.detailLabel}>Nhóm khách hàng</span>
                   <span className={styles.detailValue}>
