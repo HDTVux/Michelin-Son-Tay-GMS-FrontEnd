@@ -588,6 +588,38 @@ const PartnerFormFields = ({
             </select>
           </div>
 
+          <div className={styles.formGroup} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input
+              id={id('isCompany')}
+              type="checkbox"
+              name="isCompany"
+              checked={formData.isCompany || false}
+              onChange={(e) => setField('isCompany', e.target.checked)}
+              className={styles.checkbox}
+              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            <label className={styles.label} htmlFor={id('isCompany')} style={{ margin: 0, cursor: 'pointer' }}>
+              Khách hàng công ty
+            </label>
+          </div>
+
+          {formData.isCompany && (
+            <div className={styles.formGroup}>
+              <label className={styles.label} htmlFor={id('companyName')}>
+                Tên công ty
+              </label>
+              <input
+                id={id('companyName')}
+                type="text"
+                name="companyName"
+                value={formData.companyName || ''}
+                onChange={handleChange}
+                className={styles.input}
+                placeholder="Nhập tên công ty"
+              />
+            </div>
+          )}
+
           <div className={styles.formGroup}>
             <label className={styles.label} htmlFor={id('customerGroupId')}>
               Nhóm khách hàng

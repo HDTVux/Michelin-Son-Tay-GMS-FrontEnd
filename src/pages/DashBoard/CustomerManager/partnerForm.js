@@ -8,6 +8,7 @@ import { createCheckInVehicle } from '../../../services/checkInService.js';
 export const PARTNER_TEXT_FIELDS = [
   // Thông tin chung
   'taxCode',
+  'companyName',
   'customerCode',
   'identityCard',
   'idIssuePlace',
@@ -92,6 +93,17 @@ export const partnerFieldsFromCustomer = (customer) => {
     const value = customer[key];
     base[key] = value === null || value === undefined ? '' : String(value);
   });
+  base.isCompany = Boolean(
+    customer.isCompany === true || customer.isCompany === 1 || customer.isCompany === 'true' || customer.isCompany === '1' ||
+    customer.is_company === true || customer.is_company === 1 || customer.is_company === 'true' || customer.is_company === '1' ||
+    (customer.companyName && String(customer.companyName).trim() !== '') ||
+    (customer.company_name && String(customer.company_name).trim() !== '')
+  );
+  base.isDealer = Boolean(
+    customer.isDealer === true || customer.isDealer === 1 || customer.isDealer === 'true' || customer.isDealer === '1' ||
+    customer.is_dealer === true || customer.is_dealer === 1 || customer.is_dealer === 'true' || customer.is_dealer === '1'
+  );
+  base.companyName = customer.companyName || customer.company_name || base.companyName || '';
   // Hồ sơ đã có mã thì giữ mã đó, chưa có mới bật chế độ tự sinh.
   base.autoCustomerCode = !customer.customerCode;
   base.vehicles = [];

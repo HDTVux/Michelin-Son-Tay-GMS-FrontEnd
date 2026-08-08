@@ -45,7 +45,14 @@ const mapCustomerToFormData = (customer) => ({
   dob: customer.dob || customer.dateOfBirth || '',
   createdAt: customer.createdAt || '',
   totalBookings: customer.totalBookings ?? null,
-  isDealer: customer.isDealer || false,
+  isDealer: Boolean(customer.isDealer || customer.is_dealer),
+  isCompany: Boolean(
+    customer.isCompany === true || customer.isCompany === 1 || customer.isCompany === 'true' || customer.isCompany === '1' ||
+    customer.is_company === true || customer.is_company === 1 || customer.is_company === 'true' || customer.is_company === '1' ||
+    (customer.companyName && String(customer.companyName).trim() !== '') ||
+    (customer.company_name && String(customer.company_name).trim() !== '')
+  ),
+  companyName: customer.companyName || customer.company_name || '',
   customerType: customer.customerType || 'INDIVIDUAL'
 });
 
@@ -74,6 +81,8 @@ const EditCustomerProfile = () => {
     createdAt: '',
     totalBookings: null,
     isDealer: false,
+    isCompany: false,
+    companyName: '',
     customerType: 'INDIVIDUAL'
   });
 
@@ -175,6 +184,8 @@ const EditCustomerProfile = () => {
         avatar: null,
         firstBookingAt: null,
         isDealer: formData.isDealer,
+        isCompany: formData.isCompany,
+        companyName: formData.isCompany ? formData.companyName : null,
         customerType: formData.customerType
       };
 
@@ -193,6 +204,8 @@ const EditCustomerProfile = () => {
 			createdAt: updated.createdAt ?? prev.createdAt,
 			totalBookings: updated.totalBookings ?? prev.totalBookings,
             isDealer: updated.isDealer ?? prev.isDealer,
+            isCompany: updated.isCompany ?? prev.isCompany,
+            companyName: updated.companyName ?? prev.companyName,
             customerType: updated.customerType ?? prev.customerType,
         }));
       }
@@ -396,6 +409,37 @@ const EditCustomerProfile = () => {
                     className={`${styles.input} ${isEditing ? '' : styles.inputDisabled}`}
                   />
                 </div>
+
+                {/* Là Công ty */}
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label className={styles.pinDefaultToggle} style={{ marginTop: '15px' }}>
+                    <input
+                      type="checkbox"
+                      name="isCompany"
+                      checked={formData.isCompany || false}
+                      onChange={(e) => handleChange({ target: { name: 'isCompany', value: e.target.checked } })}
+                      disabled={!isEditing}
+                      className={styles.checkbox}
+                    />
+                    <span>Khách hàng công ty (Chuyên xử lý xe của công ty)</span>
+                  </label>
+                </div>
+
+                {formData.isCompany && (
+                  <div className={styles.formGroup}>
+                    <label className={styles.label} htmlFor="ecp_companyName">Tên công ty</label>
+                    <input
+                      id="ecp_companyName"
+                      type="text"
+                      name="companyName"
+                      value={formData.companyName || ''}
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                      className={`${styles.input} ${isEditing ? '' : styles.inputDisabled}`}
+                      placeholder="Nhập tên công ty"
+                    />
+                  </div>
+                )}
 
                 {/* Là Đại lý */}
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
