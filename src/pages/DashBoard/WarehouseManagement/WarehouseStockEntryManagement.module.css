@@ -1,6 +1,49 @@
 .wrapper {
+  width: 100%;
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.entryCard {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.entryTable {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+}
+
+.entryTable th,
+.entryTable td {
+  padding: 12px 14px;
+  text-align: center;
+  font-size: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.entryTable th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.entryTable tbody tr:hover {
+  background: #f8fafc;
 }
 
 .filterGrid {

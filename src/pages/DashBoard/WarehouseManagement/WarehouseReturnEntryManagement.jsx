@@ -347,7 +347,7 @@ export default function WarehouseReturnEntryManagement() {
                 setSearch(e.target.value);
                 setPage(0);
               }}
-              placeholder="Mã phiếu, phiếu xuất..."
+              placeholder="Mã phiếu, phiếu xuất, sản phẩm..."
             />
           </div>
           <div className={styles.field}>

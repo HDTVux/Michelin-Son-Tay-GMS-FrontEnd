@@ -311,7 +311,7 @@ export default function WarehouseStockEntryManagement() {
               type="text"
               id="stock-entry-search"
               className={commonStyles.input}
-              placeholder="Mã phiếu..."
+              placeholder="Mã phiếu, Tên/Mã sản phẩm, Tên KH..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -351,13 +351,15 @@ export default function WarehouseStockEntryManagement() {
 
         {error ? <div className={commonStyles.error}>{error}</div> : null}
 
-        <div className={commonStyles.tableWrap}>
-          <table className={commonStyles.table}>
+        <div className={styles.entryCard}>
+          <div className={styles.tableWrapper}>
+            <table className={styles.entryTable}>
             <thead>
               <tr>
                 <th>STT</th>
                 <th>Mã phiếu</th>
                 <th>Kho nhập</th>
+                <th>Nhà cung cấp</th>
                 <th>Ngày nhập</th>
                 <th>Trạng thái</th>
                 <th>Hành động</th>
@@ -366,13 +368,13 @@ export default function WarehouseStockEntryManagement() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className={styles.emptyCell}>
+                  <td colSpan={7} className={styles.emptyCell}>
                     Đang tải danh sách phiếu nhập...
                   </td>
                 </tr>
               ) : entries.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className={styles.emptyCell}>
+                  <td colSpan={7} className={styles.emptyCell}>
                     Không có dữ liệu phiếu nhập.
                   </td>
                 </tr>
@@ -386,6 +388,7 @@ export default function WarehouseStockEntryManagement() {
                       <td>{id || '-'}</td>
                       <td>{entry?.entryCode || '-'}</td>
                       <td>{entry?.warehouseName || '-'}</td>
+                      <td>{entry?.supplierName || '-'}</td>
                       <td>{formatDate(entry?.entryDate)}</td>
                       <td>
                         <span className={`${commonStyles.badge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
@@ -405,6 +408,7 @@ export default function WarehouseStockEntryManagement() {
               )}
             </tbody>
           </table>
+        </div>
         </div>
 
         <div className={commonStyles.pagination}>

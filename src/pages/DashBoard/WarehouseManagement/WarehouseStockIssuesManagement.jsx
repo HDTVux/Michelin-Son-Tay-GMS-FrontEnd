@@ -349,7 +349,7 @@ export default function WarehouseStockIssues() {
 							id="stock-issue-search"
 							className={styles.input}
 							/* input style for search */
-							placeholder="Mã phiếu..."
+							placeholder="Mã phiếu, Tên/Mã sản phẩm, Tên KH..."
 							value={search}
 							onChange={(e) => {
 								setSearch(e.target.value);
@@ -400,6 +400,7 @@ export default function WarehouseStockIssues() {
 								<th>STT</th>
 								<th>Mã phiếu</th>
 								<th>Kho xuất</th>
+								<th>Khách hàng</th>
 								<th>Phiếu dịch vụ</th>
 								<th>Ngày tạo</th>
 								<th>Trạng thái</th>
@@ -409,13 +410,13 @@ export default function WarehouseStockIssues() {
 						<tbody>
 							{loading ? (
 								<tr>
-									<td colSpan={7} className={styles.emptyCell}>
+									<td colSpan={8} className={styles.emptyCell}>
 										Đang tải danh sách phiếu xuất kho...
 									</td>
 								</tr>
 							) : issues.length === 0 ? (
 								<tr>
-									<td colSpan={7} className={styles.emptyCell}>
+									<td colSpan={8} className={styles.emptyCell}>
 										Không có dữ liệu phiếu xuất kho.
 									</td>
 								</tr>
@@ -429,6 +430,7 @@ export default function WarehouseStockIssues() {
 											<td>{id || '-'}</td>
 											<td>{row?.issueCode || '-'}</td>
 											<td>{row?.warehouseName || '-'}</td>
+											<td>{row?.receiverName || '-'}</td>
 											<td>{row?.serviceTicketCode ?? '-'}</td>
 											<td>{row?.createdAt || '-'}</td>
 											<td>
