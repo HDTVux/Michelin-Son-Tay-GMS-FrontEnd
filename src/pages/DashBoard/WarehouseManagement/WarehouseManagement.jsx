@@ -407,6 +407,91 @@ export default function PartManagement() {
   const excelInputRef = useRef(null);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isExportingInventory, setIsExportingInventory] = useState(false);
+  const [showExportInventoryWarning, setShowExportInventoryWarning] = useState(false);
+
+  /**
+   * Xuất Excel tồn kho: Xuất y hệt danh sách đang được lọc trên màn hình FE.
+   */
+  const handleExportInventory = async (confirmedAll = false) => {
+    const wid = toNullablePositiveNumber(selectedWarehouseId);
+    if (wid == null && !confirmedAll) {
+      setShowExportInventoryWarning(true);
+      return;
+    }
+    setShowExportInventoryWarning(false);
+    try {
+      setIsExportingInventory(true);
+      setError('');
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      
+      const params = {
+        page: 0,
+        size: 10000,
+      };
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (statusFilter) params.isActive = statusFilter === 'true' ? 1 : 0;
+      
+      const res = await searchWarehouseCatalogItemsDetail(params, token);
+      const payload = res?.data ?? res;
+      const allItems = Array.isArray(payload?.content) ? payload.content : [];
+      
+      const itemsToExport = allItems.filter((item) => {
+        const matchesOrigin = !originFilter || getItemOriginText(item) === originFilter;
+        const matchesColor = !colorFilter || getItemColorText(item) === colorFilter;
+        const matchesItemType = !itemTypeFilter || (() => {
+          const raw = String(item?.itemType || item?.type || '').toUpperCase();
+          if (itemTypeFilter === 'PART') return raw === 'PART' || raw === 'PRODUCT' || raw === 'SPARE_PART' || raw === 'SPAREPART';
+          if (itemTypeFilter === 'COMBO') return raw === 'COMBO' || raw === 'COMBO_ITEM' || raw === 'MAINTENANCE_PACKAGE';
+          if (itemTypeFilter === 'EQUIPMENT') return raw === 'EQUIPMENT' || raw === 'MACHINERY' || raw === 'TOOL' || raw === 'DEVICE';
+          if (itemTypeFilter === 'SERVICE') return raw === 'SERVICE';
+          return raw === itemTypeFilter;
+        })();
+        const matchesWarehouse = !wid || (() => {
+          const details = getWarehouseDetails(item);
+          return details.some(d => String(d?.warehouseId ?? d?.warehouse_id) === String(wid));
+        })();
+        return matchesOrigin && matchesColor && matchesItemType && matchesWarehouse;
+      });
+
+      if (sortConfig.key) {
+        itemsToExport.sort((a, b) => compareBySort(a, b, sortConfig.key, sortConfig.direction));
+      }
+      
+      const { header, rows } = buildSelectedExportRows(itemsToExport);
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+      
+      // Auto-fit columns
+      const colWidths = header.map(h => ({ wch: Math.max(10, h.length + 5) }));
+      rows.forEach(row => {
+          row.forEach((cell, i) => {
+              const len = String(cell || '').length;
+              if (len + 5 > colWidths[i].wch) {
+                  colWidths[i].wch = Math.min(len + 5, 50); // max width 50
+              }
+          });
+      });
+      ws['!cols'] = colWidths;
+      
+      XLSX.utils.book_append_sheet(wb, ws, 'TonKho');
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = wid != null ? `inventory-warehouse-${wid}-${Date.now()}.xlsx` : `inventory-all-warehouses-${Date.now()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err?.message || 'Không thể xuất file Excel tồn kho.');
+    } finally {
+      setIsExportingInventory(false);
+    }
+  };
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
   const [isSyncingExcel, setIsSyncingExcel] = useState(false);
   const [error, setError] = useState('');
@@ -754,7 +839,11 @@ export default function PartManagement() {
         if (itemTypeFilter === 'SERVICE') return raw === 'SERVICE';
         return raw === itemTypeFilter;
       })();
-      return matchesOrigin && matchesColor && matchesItemType;
+      const matchesWarehouse = !selectedWarehouseId || (() => {
+        const details = getWarehouseDetails(item);
+        return details.some(d => String(d?.warehouseId ?? d?.warehouse_id) === String(selectedWarehouseId));
+      })();
+      return matchesOrigin && matchesColor && matchesItemType && matchesWarehouse;
     });
     if (!sortConfig.key) return filtered;
     return [...filtered].sort((a, b) => compareBySort(a, b, sortConfig.key, sortConfig.direction));
@@ -762,10 +851,10 @@ export default function PartManagement() {
   }, [colorFilter, items, originFilter, itemTypeFilter, sortConfig, selectedWarehouseId, favoriteIds]);
 
   const itemsLengthFallback = Array.isArray(items) ? items.length : 0;
-  const totalElements = hasClientOnlyFilters
+  const totalElements = hasClientOnlyFilters || selectedWarehouseId
     ? filteredItems.length
     : Number(totalElementsServer ?? itemsLengthFallback);
-  const totalPages = hasClientOnlyFilters
+  const totalPages = hasClientOnlyFilters || selectedWarehouseId
     ? Math.max(1, Math.ceil(totalElements / Math.max(1, size)))
     : Math.max(1, Number(totalPagesServer ?? Math.max(1, Math.ceil(totalElements / Math.max(1, size)))));
   const safePage = Math.min(Math.max(0, page), totalPages - 1);
@@ -780,10 +869,10 @@ export default function PartManagement() {
   }, [safePage, totalPages]);
 
   const paged = useMemo(() => {
-    if (!hasClientOnlyFilters) return Array.isArray(items) ? items : [];
+    if (!hasClientOnlyFilters && !selectedWarehouseId) return Array.isArray(items) ? items : [];
     const start = safePage * size;
     return filteredItems.slice(start, start + size);
-  }, [filteredItems, hasClientOnlyFilters, items, safePage, size]);
+  }, [filteredItems, hasClientOnlyFilters, items, safePage, size, selectedWarehouseId]);
 
   const isAllPagedSelected = paged.length > 0 && paged.every((it) => selectedRowIds.has(it.itemId));
   const isSomePagedSelected = !isAllPagedSelected && paged.some((it) => selectedRowIds.has(it.itemId));
@@ -809,10 +898,13 @@ export default function PartManagement() {
     ];
     const rows = selectedItems.map((item, idx) => {
       const details = getWarehouseDetails(item);
-      const warehouseNames = details.map((d) => getWarehouseDisplayName(d)).join(', ') || '-';
-      const totalQuantity = details.reduce((sum, d) => sum + (getWarehouseAvailableQty(d) ?? 0), 0);
-      const totalReserved = details.reduce((sum, d) => sum + (getWarehouseReservedQty(d) ?? 0), 0);
-      const price = getWarehouseSellingPrice(details[0] || {}) ?? toFiniteNumber(item.price) ?? 0;
+      const scopedDetails = selectedWarehouseId
+        ? details.filter((d) => String(d?.warehouseId ?? d?.warehouse_id) === String(selectedWarehouseId))
+        : details;
+      const warehouseNames = scopedDetails.map((d) => getWarehouseDisplayName(d)).join(', ') || '-';
+      const totalQuantity = scopedDetails.reduce((sum, d) => sum + (getWarehouseAvailableQty(d) ?? 0), 0);
+      const totalReserved = scopedDetails.reduce((sum, d) => sum + (getWarehouseReservedQty(d) ?? 0), 0);
+      const price = getWarehouseSellingPrice(scopedDetails[0] || {}) ?? toFiniteNumber(item.price) ?? 0;
       return [
         idx + 1,
         item.itemName || '',
@@ -1265,7 +1357,7 @@ export default function PartManagement() {
             type="button"
             className={styles['ghost-button']}
             onClick={selectedRowIds.size > 0 ? handleExportSelectedToExcel : handleDownloadTemplate}
-            disabled={isDownloadingTemplate || isSyncingExcel}
+            disabled={isDownloadingTemplate || isSyncingExcel || isExportingInventory}
             title={selectedRowIds.size > 0 ? 'Xuất các dòng đã chọn ra file Excel' : 'Xuất file mẫu Excel theo kho'}
           >
             {isDownloadingTemplate
@@ -1274,6 +1366,101 @@ export default function PartManagement() {
                 ? `Xuất Excel đã chọn (${selectedRowIds.size})`
                 : 'Xuất file Excel'}
           </button>
+
+          <button
+            type="button"
+            className={styles['ghost-button']}
+            onClick={() => handleExportInventory(false)}
+            disabled={isExportingInventory || isDownloadingTemplate || isSyncingExcel}
+            title={toNullablePositiveNumber(selectedWarehouseId) != null
+              ? `Xuất Excel tồn kho của kho đang chọn`
+              : 'Xuất Excel tồn kho tổng hợp từ tất cả kho'}
+            style={{
+              background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+              color: '#fff',
+              border: '1px solid #0f766e',
+              borderRadius: '8px',
+              fontWeight: 600,
+              boxShadow: '0 2px 6px rgba(13,148,136,0.2)',
+            }}
+          >
+            {isExportingInventory ? '⏳ Đang xuất...' : '📊 Xuất Excel tồn kho'}
+          </button>
+
+          {/* Warning dialog khi không chọn kho */}
+          {showExportInventoryWarning && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.45)',
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onClick={() => setShowExportInventoryWarning(false)}
+            >
+              <div
+                style={{
+                  background: '#fff',
+                  borderRadius: '16px',
+                  padding: '32px 36px',
+                  maxWidth: '460px',
+                  width: '90%',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+                  textAlign: 'center',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ fontSize: '40px', marginBottom: '12px' }}>⚠️</div>
+                <h3 style={{ margin: '0 0 12px', color: '#1e293b', fontSize: '18px', fontWeight: 700 }}>
+                  Xuất tồn kho tất cả kho
+                </h3>
+                <p style={{ margin: '0 0 24px', color: '#475569', fontSize: '14px', lineHeight: '1.6' }}>
+                  Bạn chưa chọn kho cụ thể. Hệ thống sẽ xuất file Excel tổng hợp tồn kho từ{' '}
+                  <strong>TẤT CẢ các kho</strong>, với số lượng được cộng dồn từ tất cả kho.
+                  <br /><br />
+                  Bạn có muốn tiếp tục không?
+                </p>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowExportInventoryWarning(false)}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      background: '#f8fafc',
+                      color: '#475569',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                    }}
+                  >
+                    Huỷ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleExportInventory(true)}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+                      color: '#fff',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      boxShadow: '0 2px 6px rgba(13,148,136,0.25)',
+                    }}
+                  >
+                    📊 Xuất tất cả kho
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <button
             type="button"

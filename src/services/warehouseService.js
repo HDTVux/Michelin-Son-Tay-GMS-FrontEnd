@@ -119,6 +119,61 @@ export const fetchWarehouseInventorySyncTemplate = async (warehouseId, token) =>
   return { blob, filename };
 };
 
+// GET: /api/warehouse/inventory/{warehouseId}/export
+// Xuất tồn kho của 1 kho ra Excel
+export const exportInventoryByWarehouse = async (warehouseId, token) => {
+  const idNum = typeof warehouseId === 'number' ? warehouseId : Number(warehouseId);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/warehouse/inventory/${encodeURIComponent(String(safeId))}/export`,
+    {
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    },
+  );
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.ok) {
+    if (contentType.includes('application/json')) {
+      const data = await response.json();
+      throw new Error(data?.message || data?.data?.message || 'Request failed');
+    }
+    const text = await response.text();
+    throw new Error(text || 'Request failed');
+  }
+
+  const blob = await response.blob();
+  const filename = parseFilenameFromContentDisposition(response.headers.get('content-disposition'));
+  return { blob, filename };
+};
+
+// GET: /api/warehouse/inventory/export-all
+// Xuất tồn kho tổng hợp từ TẤT CẢ kho ra Excel (không cần chọn kho)
+export const exportInventoryAllWarehouses = async (token) => {
+  const response = await fetch(
+    `${API_BASE_URL}/api/warehouse/inventory/export-all`,
+    {
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    },
+  );
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.ok) {
+    if (contentType.includes('application/json')) {
+      const data = await response.json();
+      throw new Error(data?.message || data?.data?.message || 'Request failed');
+    }
+    const text = await response.text();
+    throw new Error(text || 'Request failed');
+  }
+
+  const blob = await response.blob();
+  const filename = parseFilenameFromContentDisposition(response.headers.get('content-disposition'));
+  return { blob, filename };
+};
+
 // POST: /api/warehouse/inventory/{warehouseId}/excel/sync
 // multipart: file
 export const syncWarehouseInventoryExcel = async (warehouseId, file, token) => {
